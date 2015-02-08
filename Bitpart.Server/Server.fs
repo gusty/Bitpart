@@ -241,7 +241,9 @@ type Protocol() =
                     reply (sprintf "MinLogLevel       = %A" appServer.MinLogLevel)                    
                     reply (sprintf "SendBufferSize = %i"    appServer.Config.SendBufferSize)
                     reply (sprintf "SendingQueueSize = %i"  appServer.Config.SendingQueueSize)
-                    reply (sprintf "Server Version = %A" (Reflection.Assembly.GetExecutingAssembly().GetName().Version))
+                    let assembly = Reflection.Assembly.GetExecutingAssembly()
+                    reply (sprintf "Server Version = %A" (assembly.GetName().Version))
+                    reply (sprintf "Path = %s" (IO.Path.GetDirectoryName(assembly.Location)))
                 | "S" ->
                     let sessionIds = state.Users |> Seq.map (fun {Session = s} -> s)
                     let anonymous  = appServer.GetAllSessions() |> Seq.filter (fun s -> not (Seq.exists ((==) s.SessionID) sessionIds))
