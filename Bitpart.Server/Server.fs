@@ -13,8 +13,8 @@ open Bitpart.Lingo.Pickler
 open Bitpart.Multiuser
 
 module internal LogTemp = 
-    let log level = Bitpart.Log.logf "Bitpart.Server" level
-    Bitpart.Log.setLogFileName "Server-log"
+    let log level = logf "Bitpart.Server" level
+    setLogFileName "Server-log"
 open LogTemp
 
 type User = {Name: string; Movie: string; Groups: string list; Session: string}
@@ -37,16 +37,16 @@ type State() =
         let rec loop() = async {
             let! (session, cmd) = inbox.Receive()
             users <-
-                match cmd, (List.tryFind (fun {Session = s} -> s == session) users) with
+                match cmd, List.tryFind (fun {Session = s} -> s == session) users with
                 | LogOnOff  f, sender      -> f users sender
                 | ServerCmd f, Some sender -> f users sender
                 | ServerCmd f, None        -> log Error "Session not found: %s." session; users
             return! (loop())}
         loop())
-    do agent.Error.Add(log Fatal "Terminate execution due to unhandled exception in the MailboxProcessor. Exception was: %A")
+    do agent.Error.Add (log Fatal "Terminate execution due to unhandled exception in the MailboxProcessor. Exception was: %A")
     member this.Users              with get() = users
     member this.CurrentQueueLength with get() = agent.CurrentQueueLength
-    member this.post sessionID mbxmsg = agent.Post(sessionID, mbxmsg)
+    member this.post sessionID mbxmsg = agent.Post (sessionID, mbxmsg)
 
 [<AllowNullLiteral>]
 type CustomProtocolSession() =
@@ -65,10 +65,10 @@ type CustomProtocolSession() =
         log Fatal "Unhandled exception in session: %s : %A " this.SessionID e
         this.Close(CloseReason.ApplicationError)
 
-type MyReceiveFilter(appServer,  appSession:CustomProtocolSession,  remoteEndPoint) =
-    inherit FixedHeaderReceiveFilter<BinaryRequestInfo>(6)
+type MyReceiveFilter (appServer,  appSession:CustomProtocolSession, remoteEndPoint) =
+    inherit FixedHeaderReceiveFilter<BinaryRequestInfo> 6
     override this.GetBodyLengthFromHeader(header, offset, length) =
-        if (not (header.[offset] = 114uy) || not (header.[offset + 1] = 0uy)) then            
+        if not (header.[offset] = 114uy) || not (header.[offset + 1] = 0uy) then            
             if appSession.Authenticated then 
                 log Warn "Invalid headers: %i - %i received from %A , session: %s . Dropping." header.[offset] header.[offset+1] remoteEndPoint appSession.SessionID
                 this.Reset()
@@ -77,16 +77,16 @@ type MyReceiveFilter(appServer,  appSession:CustomProtocolSession,  remoteEndPoi
                 appSession.Close(CloseReason.ProtocolError)
         byteSeqToInt(header.[offset+2..offset+5])
     override this.ResolveRequestInfo(header, bodyBuffer, offset, length) = 
-        new BinaryRequestInfo(Text.Encoding.UTF8.GetString(header.Array, header.Offset, 2), SuperSocket.Common.BinaryUtil.CloneRange(bodyBuffer, offset, length))
+        BinaryRequestInfo (Text.Encoding.UTF8.GetString (header.Array, header.Offset, 2), SuperSocket.Common.BinaryUtil.CloneRange (bodyBuffer, offset, length))
 
 type FilterFactory() =
     interface IReceiveFilterFactory<BinaryRequestInfo> with
-        member this.CreateFilter(appServer,  appSession,  remoteEndPoint) =
+        member this.CreateFilter (appServer,  appSession,  remoteEndPoint) =
             log Debug "New socket session: %s from %s" appSession.SessionID (appSession.RemoteEndPoint.Address.ToString())
-            new MyReceiveFilter(appServer,  appSession:?> CustomProtocolSession,  remoteEndPoint) :> IReceiveFilter<BinaryRequestInfo>
+            MyReceiveFilter (appServer, appSession :?> CustomProtocolSession,  remoteEndPoint) :> IReceiveFilter<BinaryRequestInfo>
     
 type Protocol() = 
-    inherit AppServer<CustomProtocolSession, BinaryRequestInfo>(new FilterFactory())   
+    inherit AppServer<CustomProtocolSession, BinaryRequestInfo> (FilterFactory())   
     
     let [<Literal>] MvAdm = "MovieAdmin"
     let [<Literal>] MvSQL = "MovieSQL"
@@ -94,27 +94,25 @@ type Protocol() =
     let initialMinSLL, initialMinFLL = Info, Debug
     let state = State()
     member val BlackList         = []                              with get, set
-    member val MaxUserCount      = (0, DateTime.MinValue)          with get, set
-    member val MaxSessionCount   = (0, DateTime.MinValue)          with get, set
+    member val MaxUserCount      = 0, DateTime.MinValue            with get, set
+    member val MaxSessionCount   = 0, DateTime.MinValue            with get, set
     member val MinScreenLogLevel = initialMinSLL                   with get, set
     member val MinFileLogLevel   = initialMinFLL                   with get, set
     member val MinLogLevel       = min initialMinSLL initialMinFLL with get, set
-    member val blowfishVector    = ([||],[||],[||],[||],[||])      with get, set
+    member val blowfishVector    = [||], [||], [||], [||], [||]    with get, set
     member val dbCnString        = None                            with get, set
     member val spStats           = None                            with get, set
     member val dbFnName          = "strFunction"                   with get, set
     member val dbFnArgs          = "lstArgs"                       with get, set
     member val dbFnResult        = "varResult"                     with get, set
 
-    override appServer.Setup(rootConfig, config) =
+    override appServer.Setup (rootConfig, config) =
         let encKey = config.Options.["encryptionKey"]
-        appServer.blowfishVector <- (encKey |> encoding.GetBytes |> Bitpart.Blowfish.blowfishCypher)
-        let toOption  (entry:string) = 
+        appServer.blowfishVector <- encKey |> encoding.GetBytes |> Bitpart.Blowfish.blowfishCypher
+        let toOption (entry:string) = 
             let value = config.Options.[entry]
-            if (System.String.IsNullOrEmpty value) then 
-                log Info "No %s entry in config, this feature will be disabled." entry
-                None 
-            else Some value
+            if not (String.IsNullOrEmpty value) then Some value
+            else log Info "No %s entry in config, this feature will be disabled." entry; None
             
         appServer.dbCnString <- toOption "dbCnString"
         appServer.spStats    <- toOption "spStats"
@@ -145,7 +143,7 @@ type Protocol() =
             if session = null then log Debug "Session does not exists anymore."
             else
                 let bytes = packMessage None message
-                if not (session.SocketSession.TrySend(new ArraySegment<_>(bytes))) then 
+                if not (session.SocketSession.TrySend (ArraySegment bytes)) then
                     log Warn "Dropping Message to session: %s from %-15s , size was %-4i (sender = %s, rcpts = %A, subject = %s)." session.SessionID (ipAddress session) (Seq.length bytes) message.sender message.recipients message.subject
 
 
@@ -155,22 +153,21 @@ type Protocol() =
             | Some s ->
                 let execDbQuery sp_name sp_args =
                     log Trace "execDbQuery %s %s" sp_name sp_args
-                    use conn = new SqlConnection(s)
+                    use conn = new SqlConnection (s)
                     conn.Open()
-                    let query = "exec sp_"+sp_name+" "+sp_args
-                    use command = new SqlCommand(query, conn)
+                    let query = "exec sp_" + sp_name + " " + sp_args
+                    use command = new SqlCommand (query, conn)
                     let lst = seq {
                         use reader = command.ExecuteReader()
                         while reader.Read() do
-                            yield ([0.. reader.FieldCount-1] |> List.map (fun i -> 
+                            yield [0.. reader.FieldCount-1] |> List.map (fun i -> 
                                 if reader.GetFieldType(i) = typeof<Boolean> then if reader.GetBoolean(i) then "1" else "0" 
-                                else reader.[i].ToString()
-                                )) } |> Seq.toList
+                                else reader.[i].ToString())} |> Seq.toList
                     log Trace "DB-Execution results: %A" lst
                     lst
                 
                 let dct = dict plist
-                match (dct.TryGetValue appServer.dbFnName , dct.TryGetValue appServer.dbFnArgs) with
+                match dct.TryGetValue appServer.dbFnName, dct.TryGetValue appServer.dbFnArgs with
                 | (true, LString fn), (true, LList args) ->
                     log Trace "Msg Content is : %A" plist
                     let strArgs = String.concat "," (Seq.map (function 
@@ -179,7 +176,7 @@ type Protocol() =
                         | LVoid -> "'" + "<Void>" + "'"
                         | s -> failwith (sprintf "Unexpected DBExec message format received: %A" s)) args)
                     let lstResult = execDbQuery fn strArgs
-                    let result = (Seq.toList plist) @ [appServer.dbFnResult, lstResult |> List.map (List.map LString >> LList) |> LList]
+                    let result = Seq.toList plist @ [appServer.dbFnResult, lstResult |> List.map (List.map LString >> LList) |> LList]
                     log Trace "Result before sending to server: %A" (LPropList result)
 
                     let msg = writeMessage ("System", state.Users |> Seq.filter (fun {Session = s} -> s == session.SessionID) |> Seq.map (fun {Name = n} -> n), "DBexec", LPropList result |> pickle valueP)
@@ -193,22 +190,22 @@ type Protocol() =
             let reply str = session |> send (writeMessage ("System", (state.Users |> Seq.filter (fun {Session = s} -> s == session.SessionID) |> Seq.map (fun {Name = n} -> n)), "Admin Command Reply", pickle valueP (LString str)))
             try
                 match cmd with
-                | "t" -> reply(sprintf " -> Changing minimum screen log Level to: %A" Trace); setScreenLogLevel Trace
-                | "d" -> reply(sprintf " -> Changing minimum screen log Level to: %A" Debug); setScreenLogLevel Debug
-                | "i" -> reply(sprintf " -> Changing minimum screen log Level to: %A" Info ); setScreenLogLevel Info 
-                | "w" -> reply(sprintf " -> Changing minimum screen log Level to: %A" Warn ); setScreenLogLevel Warn 
-                | "e" -> reply(sprintf " -> Changing minimum screen log Level to: %A" Error); setScreenLogLevel Error
-                | "f" -> reply(sprintf " -> Changing minimum screen log Level to: %A" Fatal); setScreenLogLevel Fatal
-                | "o" -> reply(sprintf " -> Changing minimum screen log Level to: %A" Off  ); setScreenLogLevel Off  
-                | "T" -> reply(sprintf " -> Changing minimum file log Level to: %A"   Trace); setFileLogLevel   Trace
-                | "D" -> reply(sprintf " -> Changing minimum file log Level to: %A"   Debug); setFileLogLevel   Debug
-                | "I" -> reply(sprintf " -> Changing minimum file log Level to: %A"   Info ); setFileLogLevel   Info 
-                | "W" -> reply(sprintf " -> Changing minimum file log Level to: %A"   Warn ); setFileLogLevel   Warn 
-                | "E" -> reply(sprintf " -> Changing minimum file log Level to: %A"   Error); setFileLogLevel   Error
-                | "F" -> reply(sprintf " -> Changing minimum file log Level to: %A"   Fatal); setFileLogLevel   Fatal
-                | "O" -> reply(sprintf " -> Changing minimum file log Level to: %A"   Off  ); setFileLogLevel   Off  
+                | "t" -> reply (sprintf " -> Changing minimum screen log Level to: %A" Trace); setScreenLogLevel Trace
+                | "d" -> reply (sprintf " -> Changing minimum screen log Level to: %A" Debug); setScreenLogLevel Debug
+                | "i" -> reply (sprintf " -> Changing minimum screen log Level to: %A" Info ); setScreenLogLevel Info 
+                | "w" -> reply (sprintf " -> Changing minimum screen log Level to: %A" Warn ); setScreenLogLevel Warn 
+                | "e" -> reply (sprintf " -> Changing minimum screen log Level to: %A" Error); setScreenLogLevel Error
+                | "f" -> reply (sprintf " -> Changing minimum screen log Level to: %A" Fatal); setScreenLogLevel Fatal
+                | "o" -> reply (sprintf " -> Changing minimum screen log Level to: %A" Off  ); setScreenLogLevel Off  
+                | "T" -> reply (sprintf " -> Changing minimum file log Level to: %A"   Trace); setFileLogLevel   Trace
+                | "D" -> reply (sprintf " -> Changing minimum file log Level to: %A"   Debug); setFileLogLevel   Debug
+                | "I" -> reply (sprintf " -> Changing minimum file log Level to: %A"   Info ); setFileLogLevel   Info 
+                | "W" -> reply (sprintf " -> Changing minimum file log Level to: %A"   Warn ); setFileLogLevel   Warn 
+                | "E" -> reply (sprintf " -> Changing minimum file log Level to: %A"   Error); setFileLogLevel   Error
+                | "F" -> reply (sprintf " -> Changing minimum file log Level to: %A"   Fatal); setFileLogLevel   Fatal
+                | "O" -> reply (sprintf " -> Changing minimum file log Level to: %A"   Off  ); setFileLogLevel   Off  
                 | "l" -> 
-                    reply(sprintf " -> Loading and applying blacklist ...")
+                    reply (sprintf " -> Loading and applying blacklist ...")
                     appServer.BlackList <- IO.File.ReadAllLines "blacklist.txt" |> Array.toList
                     appServer.GetAllSessions() |> Seq.filter isInBlackList |> Seq.iter (fun s -> 
                         log Warn "Session %s from %s is Blacklisted, will be disconnected immediately." s.SessionID (ipAddress s)
@@ -247,18 +244,18 @@ type Protocol() =
                     let sessionIds = state.Users |> Seq.map (fun {Session = s} -> s)
                     let anonymous  = appServer.GetAllSessions() |> Seq.filter (fun s -> not (Seq.exists ((==) s.SessionID) sessionIds))
                     let lines      = anonymous |> Seq.map (fun s -> sprintf "Session: %s IP: %-15A Start: %A Last: %A" s.SessionID s.RemoteEndPoint.Address s.StartTime s.LastActiveTime)
-                    let asText     = String.Join(nl, lines)
-                    reply(sprintf " -> Sessions pending authentication %s%s" nl asText)
+                    let asText     = String.concat nl lines
+                    reply (sprintf " -> Sessions pending authentication %s%s" nl asText)
                 | "c" -> 
                     let sessionIds = state.Users |> List.map (fun {Session = s} -> s)
                     let anonymous  = appServer.GetAllSessions() |> Seq.filter (fun s -> not (List.exists ((==) s.SessionID) sessionIds))
                     anonymous |> Seq.iter (fun s -> s.Close())
-                    reply(sprintf " -> Clean up : %i sessions pending of authorization." (Seq.length anonymous))
-                | "g" -> reply(" -> Garbage Collect"); GC.Collect()
+                    reply (sprintf " -> Clean up : %i sessions pending of authorization." (Seq.length anonymous))
+                | "g" -> reply (" -> Garbage Collect"); GC.Collect()
                 | "M" ->
                     let allMovies = "AllMovies"
                     let d = dict plist
-                    match (d.["movies"], d.["ip"], d.["port"] , d.["delay"]) with
+                    match d.["movies"], d.["ip"], d.["port"] , d.["delay"] with
                     | (LList movieIds, LString ip, LInteger port, LInteger delay) ->
                         let mparams = movieIds |> Seq.choose (function (LString m) -> Some m | _ -> None)
                         let moveAll = mparams  |> Seq.exists ((==) allMovies)
@@ -269,32 +266,32 @@ type Protocol() =
                             |> Seq.iter (fun u -> send (msg [u.Name]) (appServer.GetSessionByID(u.Session)))
                     | _ -> log Warn "Admin Command: 'M' -> wrong format"
                 | _ -> ()
-            with exn -> reply(exn.ToString())
+            with exn -> reply (exn.ToString())
 
         let removeUser user users = List.filter (fun {Session = x} -> x != user.Session) users //to do handle user not there
 
-        let appServer_NewRequestReceived (session:CustomProtocolSession) (requestInfo: Protocol.BinaryRequestInfo) =
+        let appServer_NewRequestReceived (session :CustomProtocolSession) (requestInfo :Protocol.BinaryRequestInfo) =
 
             let disconnectUser sessionId = 
-                let u = appServer.GetSessionByID(sessionId)
+                let u = appServer.GetSessionByID sessionId
                 if not (u = null) then u.Close()
 
             let antiFlood msg =
                 if session.ProtocolVersion > (1,0) && (not (session.CheckNewMessage msg.errorCode)) then
                     log Warn "Message %i from session %s ip:%s is not valid: %A" msg.errorCode session.SessionID (ipAddress session) (prettyPrintMsg msg)
-                    session.Close(CloseReason.ServerClosing)
+                    session.Close CloseReason.ServerClosing
             
             try 
                 let msg = unpickle (messageU (if session.Authenticated then None else Some appServer.blowfishVector)) requestInfo.Body
                 antiFlood msg
-                if not (session.Authenticated) then
+                if not session.Authenticated then
                     let (|Props|) lst p = List.choose (fun s -> (List.tryPick (function (str , LString v) when str = s -> Some v | _ -> None) p)) lst
                     match unpickle valueU msg.content with
                     | LList [LString moviename; LString userId; LString password]
                     | LPropList (Props ["movieID"; "userID"; "password"] [moviename; userId; password]) 
                         ->
-                        if (appServer.MinLogLevel = Trace) then log Trace "Message is %A" (prettyPrintMsg msg)
-                        let (protocol, client) =
+                        if appServer.MinLogLevel = Trace then log Trace "Message is %A" (prettyPrintMsg msg)
+                        let protocol, client =
                             match password.Split([|','|]) |> Array.collect (fun x -> x.Split([|'.'|])) |> Array.map Int32.TryParse with
                             | [|true,b1;true,b2;true,b3;true,b4|] -> ((b1, b2), (b3, b4))
                             | _                                   -> ((1 , 0 ), (2, 142))
@@ -305,7 +302,7 @@ type Protocol() =
                             | Some sender -> log Fatal "User already logged in, session %s exists." sender.Session; users
                             | None -> 
                                 let users = 
-                                    match (List.tryFind (fun {Name = n; Movie = m} -> n == userId && m == moviename) users) with
+                                    match List.tryFind (fun {Name = n; Movie = m} -> n == userId && m == moviename) users with
                                     | None              -> users
                                     | Some existingUser ->                        
                                         disconnectUser existingUser.Session
@@ -325,7 +322,7 @@ type Protocol() =
                     | _ -> failwith "Extract login info failed, expecting a list or a property list."                        
                 else
                     log Trace "Incoming Message"
-                    if (appServer.MinLogLevel = Trace) then log Trace "Message is %A" (prettyPrintMsg msg)
+                    if appServer.MinLogLevel = Trace then log Trace "Message is %A" (prettyPrintMsg msg)
 
                     let GetUsers (movie, group) _ = LPropList [("groupName", LString group) ; ("groupMembers", toLList (Seq.filter (fun {Movie = m; Groups = g} -> m == movie && Seq.exists ((==) group) g) state.Users |> Seq.map (fun {Name = n} -> n)))]
                     let GetUserCount movie      _ = LPropList [("movieID", LString movie) ; ("numberMembers", LInteger (Seq.filter (fun {Movie = m} -> m == movie) state.Users |> Seq.length))]
@@ -336,8 +333,8 @@ type Protocol() =
                     let Leave group users sender = {sender with Groups =          List.filter ((!=) group) sender.Groups} :: removeUser sender users
                     let Delete      users sender = disconnectUser sender.Session; removeUser sender users
 
-                    let decodedRecipients = List.map (fun (r:string) ->
-                        match r.Split([|'@'|]) with
+                    let decodedRecipients = List.map (fun (recipient:string) ->
+                        match recipient.Split [|'@'|] with
                         | [|""  ; ""   |] -> None     , None
                         | [|""  ; movie|] -> None     , Some movie
                         | [|user; ""   |] -> Some user, None    
@@ -345,7 +342,7 @@ type Protocol() =
                         | [|user|]        -> Some user, None       
                         | _               -> None     , None      )  msg.recipients
                     let serverMessage =
-                        match (decodedRecipients                             , msg.subject         , lazy(unpickle valueU msg.content)) with
+                        match decodedRecipients                              , msg.subject         , lazy (unpickle valueU msg.content) with
                         | [Some (CI "system.group.getUsers"    ), Some movie], _                   , Lazy(LString group) -> Function (GetUsers (movie, group))
                         | [Some (CI "system.movie.getUserCount"), Some movie], _                   , _                   -> Function (GetUserCount movie)
                         | [Some (CI "system.server.getMovies"  ), _         ], _                   , _                   -> Function  GetMovies
@@ -356,7 +353,7 @@ type Protocol() =
                         | [Some cmd                             , Some _    ], "adminCmd"          , Lazy(LPropList lst) -> AdminCmd (cmd, lst)
                         | [Some _                               , Some MvSQL], "DBexec"            , Lazy(LPropList lst) -> DBCmd lst
                         | recipients                                         , _                   , _                   -> UserMsg   recipients
-                    match (serverMessage, lazy (Seq.tryFind (fun {Session = s} -> s == session.SessionID) state.Users)) with
+                    match serverMessage, lazy (Seq.tryFind (fun {Session = s} -> s == session.SessionID) state.Users) with
                     | Function f, Lazy None -> log Debug "Session not found: %s , function: %A, message: %A" session.SessionID f (prettyPrintMsg msg)
                     | UserMsg _ , Lazy None -> log Debug "Session not found: %s, message: %s"                session.SessionID   (prettyPrintMsg msg)
                     | Function f, Lazy (Some sender) ->
@@ -364,13 +361,13 @@ type Protocol() =
                         let (sender, rcpts, content) = (Seq.head msg.recipients, [sender.Name], f sender)                        
                         log Trace "Ready to send result of processing function."
                         let msg = writeMessage (sender, rcpts, msg.subject, pickle valueP content)
-                        if (appServer.MinLogLevel = Trace) then log Trace "Sending result: %s" (prettyPrintMsg msg)                        
+                        if appServer.MinLogLevel = Trace then log Trace "Sending result: %s" (prettyPrintMsg msg)                        
                         send msg session
                     | UserMsg rcpts, Lazy (Some sender) ->
                         log Trace "Processing message ..."
                         let users = state.Users
                         let sendMany recipients =
-                            let (destUsers, destName, destMovie) =
+                            let destUsers, destName, destMovie =
                                 match recipients with
                                 | Some user, None       -> Seq.filter (fun {Movie = m; Name   = n} -> n == user && m == sender.Movie) users                      , sender.Name, None
                                 | None     , Some group -> Seq.filter (fun {Movie = m; Groups = g} -> m == sender.Movie && Seq.exists ((==) ("@"+group)) g) users, sender.Name, None
@@ -380,17 +377,17 @@ type Protocol() =
                         Seq.iter sendMany rcpts
                     | Command   c   , _ -> state.post session.SessionID (ServerCmd c)
                     | AdminCmd (c,l), _ -> processAdminCommand session c l
-                    | DBCmd l, _ -> processDBCommand session l
+                    | DBCmd l, _        -> processDBCommand    session l
                     | Invalid       , _ -> log Warn "Invalid message format received."
 
             with exn -> 
                 log Warn "Process message failed for session: %s IP: %s error: %A" session.SessionID (ipAddress session) exn
-                if not session.Authenticated then session.Close(CloseReason.ProtocolError)
+                if not session.Authenticated then session.Close CloseReason.ProtocolError
 
         let login (session:CustomProtocolSession) =
             if isInBlackList session then
                 log Warn "Session %s from %A is Blacklisted, will be disconnected." session.SessionID (ipAddress session)
-                session.Close(CloseReason.ServerClosing)
+                session.Close CloseReason.ServerClosing
             else log Debug "Accepted session: %s from: %s" session.SessionID (ipAddress session)
 
         let logout (session:CustomProtocolSession) (reason:CloseReason) =
@@ -400,9 +397,9 @@ type Protocol() =
                 | None        -> log Info "? User: %s from %s disconnected before being logged in. Reason: %A" session.SessionID                      (ipAddress session)                reason; users
             state.post session.SessionID (LogOnOff DetectDisconnect)
 
-        appServer.add_NewRequestReceived(new RequestHandler<CustomProtocolSession, Protocol.BinaryRequestInfo>(appServer_NewRequestReceived))
-        appServer.add_NewSessionConnected(new SessionHandler<CustomProtocolSession>(login))
-        appServer.add_SessionClosed(new SessionHandler<CustomProtocolSession,CloseReason>(logout))
+        appServer.add_NewRequestReceived  (RequestHandler<CustomProtocolSession, Protocol.BinaryRequestInfo> appServer_NewRequestReceived)
+        appServer.add_NewSessionConnected (SessionHandler<CustomProtocolSession> login)
+        appServer.add_SessionClosed       (SessionHandler<CustomProtocolSession,CloseReason> logout)
 
 
         let status e =
@@ -415,12 +412,12 @@ type Protocol() =
             match appServer.dbCnString, appServer.spStats with
             | Some s, Some sp ->
                 try
-                    use conn = new SqlConnection(s)
+                    use conn = new SqlConnection (s)
                     conn.Open()
-                    use command = new SqlCommand(sp, conn)
+                    use command = new SqlCommand (sp, conn)
                     command.CommandType <- Data.CommandType.StoredProcedure
-                    let mv = command.Parameters.AddWithValue("@movie", "")
-                    let uc = command.Parameters.AddWithValue("@usercount", 0)
+                    let mv = command.Parameters.AddWithValue ("@movie", "")
+                    let uc = command.Parameters.AddWithValue ("@usercount", 0)
                     stats 
                         |> Seq.iter (fun (m, u) ->
                             mv.Value <- m
@@ -433,11 +430,11 @@ type Protocol() =
             log Debug "Users   : %i" state.Users.Length
             log Debug "Sessions: %i" appServer.SessionCount
             appServer.GetAllSessions() |> Seq.iter (fun s -> 
-                if (not s.Authenticated && (DateTime.Now - s.StartTime).TotalSeconds > 60.) then 
+                if not s.Authenticated && (DateTime.Now - s.StartTime).TotalSeconds > 60. then 
                     log Debug "Session %s from %s Timeout." s.SessionID (ipAddress s)
-                    s.Close(CloseReason.TimeOut))
-        let timer = new System.Timers.Timer(15000.)
-        timer.Elapsed.Add(status)
+                    s.Close CloseReason.TimeOut)
+        let timer = new Timers.Timer 15000.
+        timer.Elapsed.Add status
         timer.Enabled <- true
                 
         base.OnStarted()

@@ -19,7 +19,7 @@ module Client =
 
     type SocketAvailable = Yes | No | Exn of exn
     let availableBytes (socket:Socket) =
-        try  if (socket.Available > 0) then Yes else No
+        try  if socket.Available > 0 then Yes else No
         with exn -> Exn exn
 
     let rec receive maxMessageSize (socket:Socket) =
@@ -28,14 +28,14 @@ module Client =
             try  Some (unPackMessage msg None)
             with exn -> log Error "Exception decoding message: %A" exn; None
         let rec receiveMsg size soFar =
-            let ans = Array.create maxMessageSize 0uy
-            match (try socket.Receive(ans, size, SocketFlags.None) with exn -> -1) with
+            let ans = Array.zeroCreate maxMessageSize
+            match (try socket.Receive (ans, size, SocketFlags.None) with exn -> -1) with
             | -1 -> log Error "Exception while receiving from server."; [||]
             |  0 -> log Error "0 bytes received but %i bytes were requested." size; [||]
             |  n ->
                 log Trace "received %i byte(s) from server" n
                 let r = Array.concat [soFar; ans.[0..n-1]]
-                if (r.Length < size) then receiveMsg size r else r
+                if r.Length < size then receiveMsg size r else r
 
         log Trace "trying to get headers"
         let bytes = receiveMsg 6 [||]
@@ -47,7 +47,7 @@ module Client =
                 let n = socket.Receive (Array.create maxMessageSize 0uy)
                 log Debug "Invalid headers, dropping 6 (headers) + %i byte(s)" n
                 receive maxMessageSize socket
-            elif (bytes.[6..].Length < msgSize) then 
+            elif bytes.[6..].Length < msgSize then 
                 log Trace "Getting the remaining part."
                 let rem = receiveMsg msgSize bytes.[6..]
                 if rem = [||] then None
@@ -86,7 +86,6 @@ module Client =
         with exn -> Some exn
 
     let sendNetMessage userName (socket:Socket) (cmd, subject) = sendMessage userName socket ([cmd], subject, pickle valueP LVoid)
-    type Server = {id : int ; socket:Socket ; details : string * int * string}
 
 
     [<EntryPoint>]
@@ -96,9 +95,9 @@ module Client =
 
         let servers = nvc.AllKeys |> Seq.toArray |> Array.mapi (fun i k ->
             let s = nvc.[k]
-            let p = s.IndexOf (';')
+            let p = s.IndexOf ';'
             let ipPort, encKey = s.[..p-1], s.[p+1..]
-            match ipPort.Split (':') with
+            match ipPort.Split ':' with
             | [|ip;port|] ->
                 k , ip, Int32.Parse port , s.[p+1..]
             | _ -> failwith "Ip and Port format should be like this: 127.0.0.1:1626")        
@@ -122,7 +121,7 @@ module Client =
             Seq.initInfinite (fun _ -> Console.ReadKey().KeyChar |> string |> Int32.TryParse)
                 |> Seq.pick (function (true, i) -> Some i | _ -> printfn "\nPlease hit a number."; None)
                   
-        let (serverName, ip, port, encKey) = servers.[serverID]
+        let serverName, ip, port, encKey = servers.[serverID]
         printfn "\nServer %s" serverName    
 
         let socket = new Socket (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.IP)
@@ -133,26 +132,26 @@ module Client =
             let rec loop () =
                 try
                     let cmd = Console.ReadKey().KeyChar
-                    let cnt,cnf = 
+                    let cnt, cnf = 
                         match cmd with
                         | 'M' -> 
                             printfn " -> Move to Net Server"
-                            if (Seq.length !_movies < 2) then
+                            if Seq.length !_movies < 2 then
                                 printfn "No movies"
                                 LPropList [], false
                             else 
                                 let allMovies = "AllMovies"
-                                let movies = allMovies :: !_movies |> Seq.zip (seq {0..Int32.MaxValue})
+                                let movies = allMovies :: !_movies |> Seq.zip {0..Int32.MaxValue}
                                 movies |> Seq.iter (fun (i,m) -> printfn "(%i) %s" i m)
                                 printf "Movie #:"
                                 let input = Console.ReadLine()
                                 let movieId input = Seq.skip (Int32.Parse input) movies |> Seq.head |> snd
-                                let movieIds = input.Split([|','|]) |> Seq.map movieId
+                                let movieIds = input.Split [|','|] |> Seq.map movieId
                                 printf "IP:"
                                 let ip = Console.ReadLine()
                                 printf  "Port:"
-                                let port = Int32.Parse(Console.ReadLine())
-                                printf  "Confirm moving movie:%s to %s:%i (y/n) :" (String.Join(", ", movieIds)) ip port
+                                let port = Int32.Parse (Console.ReadLine())
+                                printf  "Confirm moving movie:%s to %s:%i (y/n) :" (String.concat ", " movieIds) ip port
                                 if Console.ReadKey().KeyChar = 'y' then
                                     Console.WriteLine()
                                     LPropList ["movies", toLList movieIds; "ip", LString ip; "port", LInteger port; "delay", LInteger 10000], true
@@ -161,10 +160,7 @@ module Client =
                                     LPropList [], false
                     
                         | c   -> LPropList [], true
-                    if cnf then 
-                        let x = sendMessage usrName socket ([cmd.ToString() + "@" + adminMovie], "adminCmd", pickle valueP cnt)
-                        ()
-                    ()
+                    if cnf then sendMessage usrName socket ([cmd.ToString() + "@" + adminMovie], "adminCmd", pickle valueP cnt) |> ignore
                 with exn -> printfn "%A" exn
                 loop ()
             loop ()
@@ -178,12 +174,12 @@ module Client =
                 log Debug "Message received from server. Sender : %s - Subject : %s - ErrCode: %i - Rcpt: %A" message.sender message.subject message.errorCode message.recipients
                 match message.subject with 
                 | "Admin Command Reply" ->
-                   match (unpickle valueU message.content) with
+                   match unpickle valueU message.content with
                    | LString s -> log Info "%s" s
                    | _         -> log Warn "Unknown reply format."
                    None
                 | "getMovies" ->
-                   match (unpickle valueU message.content) with
+                   match unpickle valueU message.content with
                    | LList lst -> _movies := lst |> Seq.choose (function (LString s) -> Some s | _ -> None) |> Seq.toList
                    | _         -> log Warn "Unknown reply format."
                    None
