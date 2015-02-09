@@ -301,8 +301,5 @@ module Blowfish =
             messbuf.[.. len-1]
         with e -> failwithf "Blowfish error: %A" e
 
-    let encode (key:string, data:byte[]) =
-        let testkey = stringToByteSeq key |> Seq.toArray
-        blowfish (blowfishCypher testkey) data
-
+    let encode (key:string, data:byte[]) = (key |> encoding.GetBytes |> blowfishCypher |> blowfish) data
     let decode = encode

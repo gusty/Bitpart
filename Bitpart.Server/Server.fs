@@ -13,8 +13,7 @@ open Bitpart.Lingo.Pickler
 open Bitpart.Multiuser
 
 module internal LogTemp = 
-    let [<Literal>] logName = "Bitpart.Server"
-    let log level = Bitpart.Log.logf logName level
+    let log level = Bitpart.Log.logf "Bitpart.Server" level
     Bitpart.Log.setLogFileName "Server-log"
 open LogTemp
 
@@ -109,7 +108,7 @@ type Protocol() =
 
     override appServer.Setup(rootConfig, config) =
         let encKey = config.Options.["encryptionKey"]
-        appServer.blowfishVector <- (encKey |> stringToByteSeq |> Seq.toArray |> Bitpart.Blowfish.blowfishCypher)
+        appServer.blowfishVector <- (encKey |> encoding.GetBytes |> Bitpart.Blowfish.blowfishCypher)
         let toOption  (entry:string) = 
             let value = config.Options.[entry]
             if (System.String.IsNullOrEmpty value) then 

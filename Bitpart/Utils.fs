@@ -3,17 +3,15 @@
 module Utils =
     open System
 
-    let [<Literal>] iso88591 = "iso-8859-1"
-
     let inline div n m =
         let (n,m) = if m < LanguagePrimitives.GenericZero then (-n,-m) else (n,m)
         (if n < LanguagePrimitives.GenericZero then (n - m + LanguagePrimitives.GenericOne) else n) / m
 
     let inline mod' n m = ((n % m) + m) % m
 
-    let byteSeqToInt   (buffer:byte seq) = let b = buffer |> Seq.take 4 |> Seq.toArray in ((int b.[0] <<< 24) ||| (int b.[1] <<< 16) ||| (int b.[2] <<< 8) ||| int b.[3])
-    let encoding = Text.Encoding.GetEncoding iso88591
-    let stringToByteSeq (s:string) = encoding.GetBytes(s) :> seq<_>
+    let encoding = Text.Encoding.GetEncoding "iso-8859-1"
+
+    let byteSeqToInt   (buffer:byte seq) = let b = buffer |> Seq.take 4 |> Seq.toArray in ((int b.[0] <<< 24) ||| (int b.[1] <<< 16) ||| (int b.[2] <<< 8) ||| int b.[3])   
 
     type outstate = IO.BinaryWriter
     type instate  = IO.BinaryReader
@@ -33,9 +31,7 @@ module Utils =
 
     let int32U st = (int (byteU st) <<< 24) ||| (int (byteU st) <<< 16) ||| (int (byteU st) <<< 8) ||| int (byteU st)
 
-    let writeString (s:string) (st:outstate) = st.Write(encoding.GetBytes(s))
-    let bytesToString b          = encoding.GetString(b)
-    let stringToBytes (s:string) = encoding.GetBytes(s)
+    let writeString   (s:string) (st:outstate) = s |> encoding.GetBytes |> st.Write
 
     let unixTimeToInt64 (y,m,d,s) =
         let m = (m + 9) % 12

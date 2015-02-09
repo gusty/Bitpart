@@ -67,19 +67,19 @@ module Lingo =
             let len = bytes.Length
             int32P len st
             st.Write(bytes)
-            if len % 2 = 1 then st.Write(0uy)
+            if len % 2 = 1 then st.Write 0uy
 
         let chunkU st =
             let n = int32U st
-            let res = st.ReadBytes(n)
-            if (n % 2 = 1) then st.ReadByte() |> ignore
+            let res = st.ReadBytes n
+            if n % 2 = 1 then st.ReadByte () |> ignore
             res
 
-        let stringP s = chunkP (stringToBytes s)
-        let stringU st = bytesToString(chunkU st)
+        let stringP (s:string) = chunkP (encoding.GetBytes s)
+        let stringU st = encoding.GetString (chunkU st)
 
         let dateP dt st = 
-            let (lo,hi) = int64ToTuple (unixTimeToInt64 dt)
+            let lo, hi = int64ToTuple (unixTimeToInt64 dt)
             int32P lo st
             int32P hi st
 
