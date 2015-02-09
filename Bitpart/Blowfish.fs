@@ -1,10 +1,11 @@
 ﻿namespace Bitpart
 
-module Blowfish =
+open Bitpart.Utils
+open FsControl.Operators
 
-    open Bitpart.Utils
+module Blowfish =  
 
-    let int64ToByteArray (lValue:int64, buffer:byte[], offset:int) =
+    let inPlaceInt64ToBytes (lValue:int64) (buffer:byte[]) offset =
         buffer.[offset]     <- byte (lValue >>> 56)
         buffer.[offset + 1] <- byte (lValue >>> 48)
         buffer.[offset + 2] <- byte (lValue >>> 40)
@@ -13,17 +14,6 @@ module Blowfish =
         buffer.[offset + 5] <- byte (lValue >>> 16)
         buffer.[offset + 6] <- byte (lValue >>> 8)
         buffer.[offset + 7] <- byte  lValue
-
-    let byteArrayToInt64 (b:byte [], offset) = 
-        (int64 b.[offset  ] <<< 56) ||| 
-        (int64 b.[offset+1] <<< 48) ||| 
-        (int64 b.[offset+2] <<< 40) ||| 
-        (int64 b.[offset+3] <<< 32) ||| 
-        (int64 b.[offset+4] <<< 24) ||| 
-        (int64 b.[offset+5] <<< 16) ||| 
-        (int64 b.[offset+6] <<< 8 ) ||| 
-        int64 b.[offset+7]
-
 
     let P = 
         [|
@@ -248,7 +238,7 @@ module Blowfish =
         tupleToInt64 (int (nHi ^^^ pbox.[1]), int (nLo ^^^ pbox.[0]))
 
 
-    let blowfishCypher(bfkey:byte[]) =
+    let blowfishCypher (bfkey:byte[]) =
         let _pbox  = Array.copy P
         let _sbox1 = Array.init SBOX_ENTRIES (fun i -> S.[0, i])
         let _sbox2 = Array.init SBOX_ENTRIES (fun i -> S.[1, i])
@@ -256,16 +246,16 @@ module Blowfish =
         let _sbox4 = Array.init SBOX_ENTRIES (fun i -> S.[3, i])
 
         let nLen = bfkey.Length
-        if (nLen = 0) then failwith "Empty key."
+        if nLen = 0 then failwith "Empty key."
         let mutable nKeyPos = 0
         let mutable nBuild  = 0
 
-        for nI in 0..(PBOX_ENTRIES-1) do
+        for nI in 0..PBOX_ENTRIES-1 do
             for nJ in 0..3 do
                 nBuild  <- (nBuild <<< 8) ||| (int bfkey.[nKeyPos] &&& 0x0ff)
                 nKeyPos <- nKeyPos + 1
-                if (nKeyPos = nLen) then nKeyPos <- 0
-            _pbox.[nI] <- _pbox.[nI] ^^^ (uint32 nBuild)    
+                if nKeyPos = nLen then nKeyPos <- 0
+            _pbox.[nI] <- _pbox.[nI] ^^^ uint32 nBuild   
         
         let f (arr:uint32[]) n zero =
             let mutable _zero = zero
@@ -290,16 +280,16 @@ module Blowfish =
         let mutable _lCBCIV = 0L
         for nI in 0..8..buffer.Length-1 do
             _lCBCIV <- decryptBlock (pbox, sbox1, sbox2, sbox3, sbox4) _lCBCIV
-            int64ToByteArray(_lCBCIV ^^^ byteArrayToInt64(buffer, nI), buffer, nI)
+            inPlaceInt64ToBytes (_lCBCIV ^^^ fromBytesWithOptions false nI buffer) buffer nI
 
 
     let blowfish vector (data:byte[]) =
         try
-            let len = data.Length
+            let len = length data
             let messbuf = Array.init ((len-1 &&& (~~~ 7)) + 8) (fun i -> if i < len then data.[i] else 0x20uy)
             encrypt_decrypt vector messbuf
             messbuf.[.. len-1]
         with e -> failwithf "Blowfish error: %A" e
 
-    let encode (key:string, data:byte[]) = (key |> encoding.GetBytes |> blowfishCypher |> blowfish) data
+    let encode = encoding.GetBytes >> blowfishCypher >> blowfish :string -> _ 
     let decode = encode

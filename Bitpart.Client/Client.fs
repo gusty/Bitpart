@@ -4,6 +4,7 @@ open System
 open System.Net
 open System.Net.Sockets
 open System.Configuration
+open FsControl.Operators
 open Bitpart.Log
 open Bitpart.Utils
 open Bitpart.Lingo
@@ -24,7 +25,7 @@ module Client =
 
     let rec receive maxMessageSize (socket:Socket) =
         let decode msg =
-            let unPackMessage (bytes:byte []) encKey = unpickle (messageU encKey) (Seq.toArray (seq {yield! (Seq.skip 6 bytes); yield 0uy; yield 0uy}) )
+            let unPackMessage (bytes:byte []) encKey = unpickle (messageU encKey) (skip 6 bytes <|> [|0uy; 0uy|])
             try  Some (unPackMessage msg None)
             with exn -> log Error "Exception decoding message: %A" exn; None
         let rec receiveMsg size soFar =
@@ -34,24 +35,24 @@ module Client =
             |  0 -> log Error "0 bytes received but %i bytes were requested." size; [||]
             |  n ->
                 log Trace "received %i byte(s) from server" n
-                let r = Array.concat [soFar; ans.[0..n-1]]
-                if r.Length < size then receiveMsg size r else r
+                let r = soFar <|> ans.[0..n-1]
+                if length r < size then receiveMsg size r else r
 
         log Trace "trying to get headers"
         let bytes = receiveMsg 6 [||]
         if bytes = [||] then None
         else
-            let msgSize = byteSeqToInt bytes.[2..5]
+            let msgSize = fromBytesWithOptions false 2 bytes
             log Trace "Size is %i byte(s)" msgSize
             if not (bytes.[0..1] = [|114uy;0uy|]) then
                 let n = socket.Receive (Array.create maxMessageSize 0uy)
                 log Debug "Invalid headers, dropping 6 (headers) + %i byte(s)" n
                 receive maxMessageSize socket
-            elif bytes.[6..].Length < msgSize then 
+            elif length bytes.[6..] < msgSize then 
                 log Trace "Getting the remaining part."
                 let rem = receiveMsg msgSize bytes.[6..]
                 if rem = [||] then None
-                else decode (Array.concat [bytes.[..5]; rem])
+                else decode (bytes.[..5] <|> rem)
             else decode bytes
 
 
@@ -93,19 +94,19 @@ module Client =
 
         let nvc = ConfigurationManager.GetSection "servers" :?> Collections.Specialized.NameValueCollection
 
-        let servers = nvc.AllKeys |> Seq.toArray |> Array.mapi (fun i k ->
+        let servers = nvc.AllKeys |> mapi (fun i k ->
             let s = nvc.[k]
             let p = s.IndexOf ';'
             let ipPort, encKey = s.[..p-1], s.[p+1..]
             match ipPort.Split ':' with
             | [|ip;port|] ->
-                k , ip, Int32.Parse port , s.[p+1..]
+                k , ip, parse port, s.[p+1..]
             | _ -> failwith "Ip and Port format should be like this: 127.0.0.1:1626")        
 
-        let debug = Boolean.Parse ConfigurationManager.AppSettings.["Debug"]
-        Enum.Parse (typeof<LogLevel>, ConfigurationManager.AppSettings.["FileLogLevel"]) :?> LogLevel |> setFileLogLevel
-        let maxMessageSize  = Int32.Parse ConfigurationManager.AppSettings.["MaxMessageSize"]
-        let adminMovie = ConfigurationManager.AppSettings.["MovieName"]
+        let debug          = parse ConfigurationManager.AppSettings.["Debug"]
+        setFileLogLevel   <| parse ConfigurationManager.AppSettings.["FileLogLevel"]
+        let maxMessageSize = parse ConfigurationManager.AppSettings.["MaxMessageSize"]
+        let adminMovie     =       ConfigurationManager.AppSettings.["MovieName"]
 
         let log level str =
             if debug = true then logf "Bitpart.Client" level str
@@ -115,11 +116,11 @@ module Client =
 
         Console.ForegroundColor <- ConsoleColor.Gray
         printfn "Select Server"
-        servers |> Seq.iteri (fun i (a,b,c,_) -> printfn "#%i %s (%s:%i)" i a b c)
+        servers |> iteri (fun i (a,b,c,_) -> printfn "#%i %s (%s:%i)" i a b c)
 
-        let serverID = 
-            Seq.initInfinite (fun _ -> Console.ReadKey().KeyChar |> string |> Int32.TryParse)
-                |> Seq.pick (function (true, i) -> Some i | _ -> printfn "\nPlease hit a number."; None)
+        let serverID : int = 
+            Seq.initInfinite (fun _ -> Console.ReadKey().KeyChar |> string |> tryParse)
+                |> Seq.pick (function None -> printfn "\nPlease hit a number."; None | x -> x)
                   
         let serverName, ip, port, encKey = servers.[serverID]
         printfn "\nServer %s" serverName    
@@ -136,21 +137,20 @@ module Client =
                         match cmd with
                         | 'M' -> 
                             printfn " -> Move to Net Server"
-                            if Seq.length !_movies < 2 then
+                            if length !_movies < 2 then
                                 printfn "No movies"
                                 LPropList [], false
                             else 
                                 let allMovies = "AllMovies"
-                                let movies = allMovies :: !_movies |> Seq.zip {0..Int32.MaxValue}
-                                movies |> Seq.iter (fun (i,m) -> printfn "(%i) %s" i m)
+                                let movies = allMovies :: !_movies |> zip {0..maxValue()}
+                                movies |> iter (fun (i,m) -> printfn "(%i) %s" i m)
                                 printf "Movie #:"
                                 let input = Console.ReadLine()
-                                let movieId input = Seq.skip (Int32.Parse input) movies |> Seq.head |> snd
-                                let movieIds = input.Split [|','|] |> Seq.map movieId
+                                let movieIds = input.Split [|','|] |>> fun s -> skip (parse s) movies |> head |> snd
                                 printf "IP:"
                                 let ip = Console.ReadLine()
                                 printf  "Port:"
-                                let port = Int32.Parse (Console.ReadLine())
+                                let port = parse (Console.ReadLine())
                                 printf  "Confirm moving movie:%s to %s:%i (y/n) :" (String.concat ", " movieIds) ip port
                                 if Console.ReadKey().KeyChar = 'y' then
                                     Console.WriteLine()
@@ -169,7 +169,7 @@ module Client =
         let receiveMsg () =
             log Trace "Entering receive loop from server."
             match receive maxMessageSize socket with
-            | None         -> log Warn "Connection for server appears to be closed."; Some (new exn "Connection closed.")
+            | None         -> log Warn "Connection for server appears to be closed."; Some (exn "Connection closed.")
             | Some message ->
                 log Debug "Message received from server. Sender : %s - Subject : %s - ErrCode: %i - Rcpt: %A" message.sender message.subject message.errorCode message.recipients
                 match message.subject with 
@@ -180,7 +180,7 @@ module Client =
                    None
                 | "getMovies" ->
                    match unpickle valueU message.content with
-                   | LList lst -> _movies := lst |> Seq.choose (function (LString s) -> Some s | _ -> None) |> Seq.toList
+                   | LList lst -> _movies := lst |> choose (function LString s -> Some s | _ -> None)
                    | _         -> log Warn "Unknown reply format."
                    None
                 | _ -> None
@@ -200,9 +200,7 @@ module Client =
 
         Async.Start connLoop
 
-        let getMovies _ =
-            sendMessage usrName socket (["system.server.getMovies"], "getMovies", pickle valueP LVoid)
-            |> ignore
+        let getMovies _ = sendMessage usrName socket (["system.server.getMovies"], "getMovies", pickle valueP LVoid) |> ignore
 
         let timer = new Timers.Timer 2000.
         timer.Elapsed.Add getMovies

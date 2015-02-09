@@ -1,6 +1,7 @@
 ﻿module Bitpart.Multiuser
  
 open System
+open FsControl.Operators
 open Bitpart.Utils
 open Bitpart.Lingo
 open Bitpart.Lingo.Pickler
@@ -11,17 +12,17 @@ type Message =
         timeStamp : int
         subject   : string
         sender    : string
-        recipients: string list        
+        recipients: string list
         content   : byte []
     }
 
-let writeMessage (sender, rcpts, subject, content) =
+let inline writeMessage (sender, rcpts, subject, content) =
     {
         errorCode  = 0
         timeStamp  = 0
         subject    = subject
         sender     = sender
-        recipients = Seq.toList rcpts
+        recipients = toList rcpts
         content    = content
     }
 
@@ -32,33 +33,32 @@ let prettyPrintMsg msg =
 
 
 let messageP encryptionKey msg st =
-    int32P  msg.errorCode st
-    int32P  msg.timeStamp st
-    stringP msg.subject   st 
-    stringP msg.sender    st
-    int32P  msg.recipients.Length st
-    for recipient in msg.recipients do stringP recipient st
-    st.Write (match encryptionKey with Some key -> Blowfish.encode (key, msg.content) | _ -> msg.content)
+    numP  msg.errorCode st
+    numP  msg.timeStamp st
+    stringP msg.subject st 
+    stringP msg.sender  st
+    numP (length msg.recipients) st
+    map_ (fun recipient -> stringP recipient st) msg.recipients
+    st.Write (match encryptionKey with Some key -> Blowfish.encode key msg.content | _ -> msg.content)
 
 let messageU encryptionKeyVectors st =
     {
-        errorCode  = int32U  st
-        timeStamp  = int32U  st
+        errorCode  = numU    st
+        timeStamp  = numU    st
         subject    = stringU st
         sender     = stringU st
         recipients = listU   stringU st   
         content    = 
-            let ct = st.ReadBytes(int (st.BaseStream.Length - st.BaseStream.Position))
+            let ct = st.ReadBytes (int (st.BaseStream.Length - st.BaseStream.Position))
             match encryptionKeyVectors with None -> ct | Some v -> Blowfish.blowfish v ct
     }
 
 let packMessage encKey message =
     let msgBody = pickle (messageP encKey) message
-    use stream  = new IO.MemoryStream()
-    use writer  = new IO.BinaryWriter(stream)
-    let len     = msgBody.Length
+    use stream  = new IO.MemoryStream ()
+    use writer  = new IO.BinaryWriter (stream)
     byteP  114uy writer
     byteP    0uy writer
-    int32P len   writer
+    numP (length msgBody) writer
     writer.Write msgBody
     stream.ToArray()

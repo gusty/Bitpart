@@ -1,6 +1,7 @@
 ﻿namespace Bitpart.Test
 
 open Microsoft.VisualStudio.TestTools.UnitTesting
+open FsControl.Operators
 open Bitpart.Utils
 open Bitpart.Lingo
 open Bitpart.Lingo.Pickler
@@ -34,5 +35,5 @@ type Protocol() =
     [<TestMethod>]   
     member this.PickleUnpickleTime() =
         let s = System.DateTime.Now
-        Seq.iter (fun _ -> this.PickleUnpickle()) {1..40000}
+        map_ (fun _ -> this.PickleUnpickle()) {1..40000}
         Assert.IsTrue ((System.DateTime.Now - s).TotalMilliseconds < 1000.)

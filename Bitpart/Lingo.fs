@@ -1,6 +1,7 @@
 ﻿namespace Bitpart
 
 open System
+open FsControl.Operators
 open Bitpart.Utils
 
 module Lingo =
@@ -25,22 +26,22 @@ module Lingo =
         with override t.ToString() =
                 match t with
                 | LVoid      -> "void"
-                | LSymbol  s -> ("#" + s ) 
-                | LString  s -> ("\"" + s + "\"")
+                | LSymbol  s -> "#" + s 
+                | LString  s -> "\"" + s + "\""
                 | LFloat   f -> string f
                 | LInteger i -> string i
-                | LPoint   (x, y)    -> sprintf  "point(%A, %A)" x y
-                | LRect (a, b, c, d) -> sprintf  "rect(%A, %A, %A, %A)" a b c d
-                | LColor   (r, g, b) -> sprintf  "color(%i, %i, %i)"  r g b
-                | LVector  (x, y, z) -> sprintf  "vector(%f, %f, %f)" x y z
-                | LList     l -> "[" + String.concat ", " (Seq.map (fun e -> string (box e) ) l)  + "]"
-                | LPropList m -> "[" + String.concat ", " (Seq.map (fun (k, v) -> "#" + k + ": " + string (box v) ) m)  + "]"
+                | LPoint   (x, y)    -> sprintf "point(%A, %A)" x y
+                | LRect (a, b, c, d) -> sprintf "rect(%A, %A, %A, %A)" a b c d
+                | LColor   (r, g, b) -> sprintf "color(%i, %i, %i)"  r g b
+                | LVector  (x, y, z) -> sprintf "vector(%f, %f, %f)" x y z
+                | LList     l -> "[" + String.concat ", " (l |>> (box >> string))  + "]"
+                | LPropList m -> "[" + String.concat ", " (m |>> fun (k, v) -> "#" + k + ": " + string (box v))   + "]"
                 | LDate (y,m,d,s) -> sprintf "date (%i, %i, %i) + %i seconds" y m d s
                 | LTransform (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) ->
                     sprintf  "transform(%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f)" a b c d e f g h i j k l m n o p
-                | LPicture b -> sprintf "Picture Data: %i bytes long %A" (Seq.length b) (Seq.take 8 b |> Seq.map string)
-                | LMedia   b -> sprintf "Media Data: %i bytes long %A"   (Seq.length b) (Seq.take 8 b |> Seq.map string)
-                | LRaw     b -> sprintf "Raw Data: %i bytes long %A"     (Seq.length b) (Seq.take 8 b |> Seq.map string)
+                | LPicture b -> sprintf "Picture Data: %i bytes long %A" (length b) (take 8 b |>> string)
+                | LMedia   b -> sprintf "Media Data: %i bytes long %A"   (length b) (take 8 b |>> string)
+                | LRaw     b -> sprintf "Raw Data: %i bytes long %A"     (length b) (take 8 b |>> string)
  
 
     module Type =
@@ -64,13 +65,13 @@ module Lingo =
     module Pickler =
         open Type
         let chunkP (bytes:byte []) st =
-            let len = bytes.Length
-            int32P len st
-            st.Write(bytes)
+            let len = length bytes
+            numP len st
+            st.Write bytes
             if len % 2 = 1 then st.Write 0uy
 
         let chunkU st =
-            let n = int32U st
+            let n = numU st
             let res = st.ReadBytes n
             if n % 2 = 1 then st.ReadByte () |> ignore
             res
@@ -80,76 +81,65 @@ module Lingo =
 
         let dateP dt st = 
             let lo, hi = int64ToTuple (unixTimeToInt64 dt)
-            int32P lo st
-            int32P hi st
+            numP lo st
+            numP hi st
 
         let dateU st =
-            let lo = int32U st
-            let hi = int32U st
+            let lo = numU st
+            let hi = numU st
             (lo, hi) |> tupleToInt64 |> int64ToUnixTime
 
-        let listU f st = Seq.fold (fun elems _ -> f st :: elems) [] {1..int32U st} |> Collections.List.rev
-
-        let singleP (x:single) (st:outstate) = st.Write(Array.rev (System.BitConverter.GetBytes x))
-        let singleU (st:instate) = System.BitConverter.ToSingle((st.ReadBytes 4 |> Array.rev), 0)
-        let doubleP (x:float ) (st:outstate) = st.Write(Array.rev (System.BitConverter.GetBytes x))
-        let doubleU (st:instate) = System.BitConverter.ToDouble((st.ReadBytes 8 |> Array.rev), 0)
+        let listU f st = {1..numU st} |> foldl (fun elems _ -> f st :: elems) [] |> rev
 
         let rec valueP value st =
             match value with
-            | LVoid              -> int16P Void      st
-            | LInteger int       -> int16P Integer   st; int32P  int     st
-            | LFloat   float     -> int16P Float     st; doubleP float   st
-            | LSymbol  string    -> int16P Symbol    st; stringP string  st
-            | LString  string    -> int16P String    st; stringP string  st
-            | LList    list      -> int16P List      st; int32P list.Length st; for e in list do valueP e st
-            | LPoint   (x, y)    -> int16P Point     st; valueP  x st; valueP  y st
-            | LRect (a, b, c, d) -> int16P Rect      st; valueP  a st; valueP  b st; valueP  c st; valueP d st
-            | LVector  (x, y, z) -> int16P Vector    st; singleP x st; singleP y st; singleP z st
+            | LVoid              -> numP Void    st
+            | LInteger int       -> numP Integer st; numP    int     st
+            | LFloat   float     -> numP Float   st; numP    float   st
+            | LSymbol  string    -> numP Symbol  st; stringP string  st
+            | LString  string    -> numP String  st; stringP string  st
+            | LList    list      -> numP List    st; numP (length list) st; map_ (fun e -> valueP e st) list
+            | LPoint   (x, y)    -> numP Point   st; valueP  x st; valueP y st
+            | LRect (a, b, c, d) -> numP Rect    st; valueP  a st; valueP b st; valueP c st; valueP d st
+            | LVector  (x, y, z) -> numP Vector  st; numP x st; numP y st; numP z st
             | LTransform (p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, pa, pb, pc, pd, pe, pf)  -> 
-                int16P Transform st
-                singleP p0 st; singleP p1 st; singleP p2 st; singleP p3 st; singleP p4 st; singleP p5 st; singleP p6 st; singleP p7 st
-                singleP p8 st; singleP p9 st; singleP pa st; singleP pb st; singleP pc st; singleP pd st; singleP pe st; singleP pf st
-            | LPropList list ->
-                int16P PropList      st
-                int32P (Seq.length list)  st
-                for (k,v) in list do 
-                    int16P  Symbol   st
-                    stringP k             st
-                    valueP  v             st
-            | LColor  (r,g,b) -> int16P Color   st; byteP   1uy  st; byteP (byte r) st; byteP (byte g) st; byteP (byte b) st;
-            | LDate (y,m,d,s) -> int16P Date    st; dateP(y,m,d,s)  st
-            | LPicture bytes  -> int16P Picture st; chunkP bytes st
-            | LMedia   bytes  -> int16P Media   st; chunkP bytes st
-            | LRaw     bytes  -> st.Write(Seq.toArray bytes)
+                numP Transform st
+                numP p0 st; numP p1 st; numP p2 st; numP p3 st; numP p4 st; numP p5 st; numP p6 st; numP p7 st
+                numP p8 st; numP p9 st; numP pa st; numP pb st; numP pc st; numP pd st; numP pe st; numP pf st
+            | LPropList list  -> numP PropList st; numP (length list) st; map_ (fun (k, v) -> numP Symbol st; stringP k st; valueP v st) list
+            | LColor  (r,g,b) -> numP Color   st; byteP 1uy st; byteP (byte r) st; byteP (byte g) st; byteP (byte b) st;
+            | LDate (y,m,d,s) -> numP Date    st; dateP (y, m, d, s)  st
+            | LPicture bytes  -> numP Picture st; chunkP bytes st
+            | LMedia   bytes  -> numP Media   st; chunkP bytes st
+            | LRaw     bytes  -> st.Write (toArray bytes)
 
         let rec valueU st =
-            let ltype = int16U st
-            let header lValue = [| byte (lValue >>>  8); byte lValue|]
+            let ltype = numU st
+            let header lValue = [|byte (lValue >>>  8); byte lValue|]
             match ltype with
             | Void      -> LVoid
-            | Integer   -> LInteger   (int32U  st)
-            | Float     -> LFloat     (doubleU st)
+            | Integer   -> LInteger   (numU  st)
+            | Float     -> LFloat     (numU st)
             | Symbol    -> LSymbol    (stringU st)
             | String    -> LString    (stringU st)
             | List      -> LList      (listU valueU st)
             | Point     -> LPoint     (valueU  st, valueU  st)
             | Rect      -> LRect      (valueU  st, valueU  st, valueU  st, valueU  st)
-            | Vector    -> LVector    (singleU st, singleU st, singleU st)
+            | Vector    -> LVector    (numU st, numU st, numU st)
             | Transform -> LTransform (
-                                    singleU st, singleU st, singleU st, singleU st, singleU st, singleU st, singleU st, singleU st, 
-                                    singleU st, singleU st, singleU st, singleU st, singleU st, singleU st, singleU st, singleU st)
+                            numU st, numU st, numU st, numU st, numU st, numU st, numU st, numU st, 
+                            numU st, numU st, numU st, numU st, numU st, numU st, numU st, numU st)
             | PropList  ->
                 let f st = (match valueU st with LSymbol s -> s | _ -> failwith "Symbol expected."), valueU st
                 LPropList (listU f st)
-            | Color     -> ignore   (byteU   st); LColor (int (byteU st), int (byteU st), int (byteU st))
-            | Date      -> LDate    (dateU   st)
-            | Picture   -> LPicture (chunkU  st)
-            | Media     -> LMedia   (chunkU  st)
-            | _         -> LRaw     (Array.append (header ltype) (st.ReadBytes (int (st.BaseStream.Length-st.BaseStream.Position))))
+            | Color     -> ignore   (byteU  st); LColor (int (byteU st), int (byteU st), int (byteU st))
+            | Date      -> LDate    (dateU  st)
+            | Picture   -> LPicture (chunkU st)
+            | Media     -> LMedia   (chunkU st)
+            | _         -> LRaw     (header ltype <|> st.ReadBytes (int (st.BaseStream.Length-st.BaseStream.Position)))
 
 
-    let toLList v = v |> Seq.map LString  |> Seq.toList |> LList
+    let inline toLList v = v |>> LString  |> toList |> LList
     
     open FParsec
     module internal Parser =
