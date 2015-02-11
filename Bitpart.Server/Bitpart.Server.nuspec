@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>Bitpart.Server</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Gusty</authors>
+    <owners>Gusty</owners>
+    <licenseUrl>http://www.apache.org/licenses/</licenseUrl>
+    <projectUrl>https://github.com/gmpl/Bitpart</projectUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <description>Bitpart Server is a Socket Server compatible with Shockwave Multiuser Server Protocol.</description>
+    <releaseNotes></releaseNotes>
+    <copyright>Copyright 2012-2015</copyright>
+    <tags> Shockwave Director Multiuser SMUS MUS </tags>
+  </metadata>
+  <files>
+    <file src="bin\Release\**\*.*" target="lib" />
+  </files>
+</package>

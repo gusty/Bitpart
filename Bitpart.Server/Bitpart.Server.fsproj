@@ -51,6 +51,9 @@
   </Choose>
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
+    <Compile Include="..\Bitpart\AssemblyInfo.fs">
+      <Link>AssemblyInfo.fs</Link>
+    </Compile>
     <Compile Include="Server.fs" />
     <None Include="packages.config" />
     <None Include="supersocket.sh" />
