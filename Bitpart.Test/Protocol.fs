@@ -36,4 +36,4 @@ type Protocol() =
     member this.PickleUnpickleTime() =
         let s = System.DateTime.Now
         map_ (fun _ -> this.PickleUnpickle()) {1..40000}
-        Assert.IsTrue ((System.DateTime.Now - s).TotalMilliseconds < 1000.)
+        Assert.IsTrue ((System.DateTime.Now - s).TotalMilliseconds < 2000.)

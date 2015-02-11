@@ -89,7 +89,7 @@ module Lingo =
             let hi = numU st
             (lo, hi) |> tupleToInt64 |> int64ToUnixTime
 
-        let listU f st = {1..numU st} |> foldl (fun elems _ -> f st :: elems) [] |> rev
+        let listU f st = {1..numU st} |> fold (fun elems _ -> f st :: elems) [] |> rev
 
         let rec valueP value st =
             match value with
