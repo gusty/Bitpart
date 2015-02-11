@@ -3,7 +3,7 @@
   <metadata>
     <id>Bitpart.Server</id>
     <version>$version$</version>
-    <title>$title$</title>
+    <title>Bitpart Server</title>
     <authors>Gusty</authors>
     <owners>Gusty</owners>
     <licenseUrl>http://www.apache.org/licenses/</licenseUrl>
