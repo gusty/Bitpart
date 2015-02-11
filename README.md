@@ -1,7 +1,7 @@
 # Bitpart
 
- - [Lingo](http://en.wikipedia.org/wiki/Lingo_(programming_language)) values parser
- - Lingo values serializer
+ - [Lingo](http://en.wikipedia.org/wiki/Lingo_(programming_language)) value parser
+ - Lingo value serializer
  - Socket Server compatible with Shockwave Multiuser Server Protocol + DB Access
  
 
@@ -35,8 +35,9 @@ At high level only the basic set of commands of the SMUS are provided, the rest 
  - Message validation, version control, anti-flood filter
  - DB access
 
-To install it build the BitPart.Server project, copy the output directory to your server, there you will find Bitpart.Server.dll which is a plug-in for [SuperSocket](http://www.supersocket.net), just run SuperSocket.exe, adjust the config and select install as a service.
+
+Build the project BitPart.Server and copy the output directory to your server or [download the latest binaries](http://packages.nuget.org/api/v1/package/Bitpart.Server) and copy the folder Bitpart.Server to your server.
+
+The file Bitpart.Server.dll is a plug-in for [SuperSocket](http://www.supersocket.net). Adjust the SuperSocket.exe.config file, run SuperSocket.exe and select install as a service.
+
 You can also build the Bitpart.Client and use it to manage your server remotely.
-
-
-

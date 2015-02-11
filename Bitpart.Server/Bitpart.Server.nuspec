@@ -15,6 +15,6 @@
     <tags> Shockwave Director Multiuser SMUS MUS </tags>
   </metadata>
   <files>
-    <file src="bin\Release\**\*.*" target="lib" />
+    <file src="bin\Release\**\*.*" target="Bitpart.Server" />
   </files>
 </package>
