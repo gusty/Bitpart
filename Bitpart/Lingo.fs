@@ -30,8 +30,8 @@ module Lingo =
                 | LString  s -> "\"" + s + "\""
                 | LFloat   f -> string f
                 | LInteger i -> string i
-                | LPoint   (x, y)    -> sprintf "point(%A, %A)" x y
-                | LRect (a, b, c, d) -> sprintf "rect(%A, %A, %A, %A)" a b c d
+                | LPoint   (x, y)    -> sprintf "point(%O, %O)" x y
+                | LRect (a, b, c, d) -> sprintf "rect(%O, %O, %O, %O)" a b c d
                 | LColor   (r, g, b) -> sprintf "color(%i, %i, %i)"  r g b
                 | LVector  (x, y, z) -> sprintf "vector(%f, %f, %f)" x y z
                 | LList     l -> "[" + String.concat ", " (l |>> (box >> string))  + "]"
@@ -140,19 +140,13 @@ module Lingo =
 
 
     let inline toLList v = v |>> LString  |> toList |> LList
-    
-    open FParsec
-    module internal Parser =
-        
-        let parse parser str =
-            match run parser str with
-            | Success(result  , _, _) -> Choice1Of2 result
-            | Failure(errorMsg, _, _) -> Choice2Of2 errorMsg
-    
 
+    open FParsec
+    module internal Parser =    
+        
         // some abbreviations
-        let internal ws    = spaces // eats any whitespace
-        let internal str s = pstring s
+        let private ws  = spaces // eats any whitespace
+        let private str = pstring  
 
         let stringLiteral =
             let escape = anyOf "\"\\/bfnrt" |>> function
@@ -177,9 +171,9 @@ module Lingo =
             let isIdentifierChar c = isLetter c || isDigit c || c = '_'
             many1Satisfy2L isIdentifierFirstChar isIdentifierChar "identifier"
 
-        let internal btParens p = (between (str "(") (str ")")) p
-        let internal i0 p =             ws >>. p .>> ws
-        let internal iN p = str "," >>. ws >>. p .>> ws
+        let private btParens p = (between (str "(") (str ")")) p
+        let private i0 p =             ws >>. p .>> ws
+        let private iN p = str "," >>. ws >>. p .>> ws
 
         let pSymbol = str "#" >>. pIdentifier
         let lsymbol = pSymbol |>> LSymbol
@@ -198,12 +192,12 @@ module Lingo =
 
         let lvalue, lvalueRef = createParserForwardedToRef()
 
-        let listBtStrings sOpen sClose pElement f = between (str sOpen) (str sClose) (ws >>. sepBy (pElement .>> ws) (str "," .>> ws) |>> f)
+        let private listBtStrings sOpen sClose pElement f = between (str sOpen) (str sClose) (ws >>. sepBy (pElement .>> ws) (str "," .>> ws) |>> f)
         let emptyplist = str "[" >>. ws >>. str ":" >>. ws >>. str "]" >>% (LPropList [])
         let keyValue = tuple2 pSymbol (ws >>. str ":" >>. ws >>. lvalue)
         let llist  = listBtStrings "[" "]" lvalue   LList
         let lplist = listBtStrings "[" "]" keyValue LPropList
-        let psingle x = (pfloat |>> single) x
+        let psingle = pfloat |>> single
         let number = attempt linteger <|> lfloat
 
         do lvalueRef := choice [attempt llist
