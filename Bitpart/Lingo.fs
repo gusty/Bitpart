@@ -2,6 +2,7 @@
 
 open System
 open FsControl.Operators
+open FsParsec
 open Bitpart.Utils
 
 module Lingo =
@@ -140,8 +141,7 @@ module Lingo =
 
 
     let inline toLList v = v |>> LString  |> toList |> LList
-
-    open FParsec
+    
     module internal Parser =    
         
         // some abbreviations
@@ -219,13 +219,13 @@ module Lingo =
         let plingoValue = ws >>. lvalue .>> ws .>> eof
 
     type LValue with
-        
+
         static member TryParse (s:string, [<Runtime.InteropServices.Out>]result: LValue byref) =
             match run Parser.plingoValue s with
-            | Success (res, _, _) -> result <- res; true
-            | Failure (err, _, _) -> false
+            | Choice1Of2 res -> result <- res; true
+            | Choice2Of2 err -> false
 
         static member Parse (s:string, culture:Globalization.CultureInfo) =
             match run Parser.plingoValue s with
-            | Success (res, _, _) -> res
-            | Failure (err, _, _) -> FormatException err |> raise
+            | Choice1Of2 res -> res
+            | Choice2Of2 err -> FormatException err |> raise

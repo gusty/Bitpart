@@ -57,6 +57,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Log.fs" />
     <Compile Include="Utils.fs" />
+    <Compile Include="FsParsec.fs" />
     <Compile Include="Lingo.fs" />
     <Compile Include="Blowfish.fs" />
     <Compile Include="Multiuser.fs" />
