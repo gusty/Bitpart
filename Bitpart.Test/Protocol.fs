@@ -37,3 +37,24 @@ type Protocol() =
         let s = System.DateTime.Now
         map_ (fun _ -> this.PickleUnpickle()) {1..40000}
         Assert.IsTrue ((System.DateTime.Now - s).TotalMilliseconds < 2000.)
+
+    [<TestMethod>] 
+    member this.ParseToString() =     
+        let v1 = 
+            LPropList [
+                "move"  , LList [LRect(LInteger 2, LFloat -2879.54, LInteger -7984, LFloat 1.1)]
+                "object", LString "Queen"
+                "Color" , LColor (255, 0, 55)
+                ]
+        let s = string v1
+        let v2 = parse s
+        Assert.IsTrue((v1 = v2))
+        ()
+
+
+    [<TestMethod>] 
+    member this.ParseToStringTime() =     
+        let s = System.DateTime.Now
+        map_ (fun _ -> this.ParseToString()) {1..40000}
+        Assert.IsTrue ((System.DateTime.Now - s).TotalMilliseconds < 3000.)
+        ()
