@@ -42,7 +42,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="FsControl.Core">
-      <HintPath>..\packages\FsControl.1.0.13\lib\net40\FsControl.Core.dll</HintPath>
+      <HintPath>..\packages\FsControl.2.0.0-CI00001\lib\net40\FsControl.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="mscorlib" />

@@ -8,7 +8,7 @@ module Parser =
 
     open FParsec
 
-    let run    (Parser p) s = 
+    let run (Parser p) s = 
         match run p s with
         | Success (res, _, _) -> Choice1Of2 res
         | Failure (err, _, _) -> Choice2Of2 err
@@ -62,8 +62,8 @@ module Parser =
 open FsControl.Core.TypeMethods
 
 type Parser with
-    static member instance (_:Functor.Map       ,   Parser x,   _) = fun f -> Parser (FParsec.Primitives.(|>>) x f)
-    static member instance (_:Applicative.Pure  , _:Parser<_,_>  ) = fun x -> Parser.preturn x
-    static member instance (_:Monad.Bind    ,Parser x, _         ) = fun f -> Parser (FParsec.Primitives.(>>=) x (f >> Parser.unwrap)):Parser<'s,'b>
-    static member instance (_:Functor.Zero, _:Parser<'s,'a>      ) = fun () -> Parser.pzero
-    static member instance (_:Functor.Plus,   Parser x,   _      ) = fun (Parser y) -> Parser (FParsec.Primitives.(<|>) x y)
+    static member Map (Parser x, f) = Parser (FParsec.Primitives.(|>>) x f)
+    static member Return (x) =  Parser.preturn x
+    static member Bind (Parser x, f) = Parser (FParsec.Primitives.(>>=) x (f >> Parser.unwrap)):Parser<'s,'b>
+    static member Zero (_:Parser<'s,'a>, _) = Parser.pzero
+    static member Plus (Parser x, Parser y, _) = Parser (FParsec.Primitives.(<|>) x y)
