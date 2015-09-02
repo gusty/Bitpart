@@ -56,7 +56,8 @@ type CustomProtocolSession() =
     let lastMessages   = Array.zeroCreate messageLogSize
     member val Authenticated   = false  with get, set
     member val ProtocolVersion = (0, 0) with get, set
-    member val ClientVersion   = (0, 0) with get, set
+    member val ClientVersion   = (0, 0) with get, set    
+    member val MessageHash     = (-1, null)  with get, set
     member this.CheckNewMessage msgId = 
         let  v = lastMessages.[msgId % messageLogSize]
         if   v = msgId then log Warn "Duplicate message: %i - Session: %s" msgId this.SessionID ; false
@@ -100,6 +101,7 @@ type Protocol() =
     member val MinScreenLogLevel = initialMinSLL                   with get, set
     member val MinFileLogLevel   = initialMinFLL                   with get, set
     member val MinLogLevel       = min initialMinSLL initialMinFLL with get, set
+    member val encKey            = ""                              with get, set
     member val blowfishVector    = [||], [||], [||], [||], [||]    with get, set
     member val dbCnString        = None                            with get, set
     member val spStats           = None                            with get, set
@@ -108,8 +110,8 @@ type Protocol() =
     member val dbFnResult        = "varResult"                     with get, set
 
     override appServer.Setup (rootConfig, config) =
-        let encKey = config.Options.["encryptionKey"]
-        appServer.blowfishVector <- encKey |> encoding.GetBytes |> Bitpart.Blowfish.blowfishCypher
+        appServer.encKey <- config.Options.["encryptionKey"]
+        appServer.blowfishVector <- appServer.encKey |> encoding.GetBytes |> Bitpart.Blowfish.blowfishCypher
         let toOption (entry:string) = 
             let value = config.Options.[entry]
             if not (String.IsNullOrEmpty value) then Some value
@@ -278,8 +280,32 @@ type Protocol() =
                 if not (u = null) then u.Close()
 
             let antiFlood msg =
-                if session.ProtocolVersion > (1,0) && (not (session.CheckNewMessage msg.errorCode)) then
-                    log Warn "Message %i from session %s ip:%s is not valid: %A" msg.errorCode session.SessionID (ipAddress session) (prettyPrintMsg msg)
+                let order, hashOK = 
+                    if session.ProtocolVersion > (1,1) then
+
+                        let bytes = toBytes msg.errorCode
+                        let order, hashReceived = fromBytes (bytes.[..2] <|> [|0uy|]), bytes.[3]
+
+                        let hashExpected n =
+                            let encode n =
+                                match session.MessageHash with
+                                | (i, k) when i = n -> k
+                                | _ ->
+                                    use md5 = Security.Cryptography.MD5CryptoServiceProvider.Create()
+                                    let x = md5.ComputeHash (encoding.GetBytes ((appServer.encKey + session.SessionID) + string n))
+                                    session.MessageHash <- (n, x)
+                                    x
+                            let d, r = divRem n 16
+                            (encode d).[r]
+
+                        order, hashReceived = hashExpected order
+                    else msg.errorCode, true
+
+                if (not hashOK) || (session.ProtocolVersion > (1,0) && (not (session.CheckNewMessage order))) then
+                    if (not hashOK) then
+                        log Warn "Message %i from session %s ip:%s is not valid, hash doesn't match: %A" msg.errorCode session.SessionID (ipAddress session) (prettyPrintMsg msg)
+                    else
+                        log Warn "Message %i from session %s ip:%s is not valid: %A" msg.errorCode session.SessionID (ipAddress session) (prettyPrintMsg msg)
                     session.Close CloseReason.ServerClosing
             
             try 
@@ -310,6 +336,7 @@ type Protocol() =
                                         log Info "User already exists in that movie. Disconnect user:%s from movie:%s, session %s" userId moviename existingUser.Session
                                         removeUser existingUser users
                                 send (writeMessage ("System", [userId], "Logon", pickle valueP (LString moviename))) session
+                                if session.ProtocolVersion > (1,1) then send (writeMessage ("System", [userId], "SessionID", pickle valueP (LString session.SessionID))) session
                                 session.Authenticated     <- true
                                 appServer.MaxUserCount    <- maxBy fst [appServer.MaxUserCount   ; length state.Users    , DateTime.UtcNow]
                                 appServer.MaxSessionCount <- maxBy fst [appServer.MaxSessionCount; appServer.SessionCount, DateTime.UtcNow]
