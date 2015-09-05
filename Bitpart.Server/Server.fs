@@ -70,14 +70,11 @@ type CustomProtocolSession() =
 type MyReceiveFilter (appServer,  appSession:CustomProtocolSession, remoteEndPoint) =
     inherit FixedHeaderReceiveFilter<BinaryRequestInfo> 6
     override this.GetBodyLengthFromHeader(header, offset, length) =
-        if not (header.[offset] = 114uy) || not (header.[offset + 1] = 0uy) then            
-            if appSession.Authenticated then 
-                log Warn "Invalid headers: %i - %i received from %A , session: %s . Dropping." header.[offset] header.[offset+1] remoteEndPoint appSession.SessionID
-                this.Reset()
-            else
-                log Warn "Invalid headers: %i - %i received from %A , session: %s . Client is not authenticated, will disconnect." header.[offset] header.[offset+1] remoteEndPoint appSession.SessionID
-                appSession.Close(CloseReason.ProtocolError)
-        fromBytesWithOptions false (offset+2) header
+        if not (header.[offset] = 114uy) || not (header.[offset + 1] = 0uy) then
+            log Warn "Invalid headers: %i - %i received from %A , session: %s . Client is %sauthenticated, will disconnect." header.[offset] header.[offset+1] remoteEndPoint appSession.SessionID (if appSession.Authenticated then "" else "not ")
+            appSession.Close(CloseReason.ProtocolError)
+            0
+        else fromBytesWithOptions false (offset+2) header
     override this.ResolveRequestInfo(header, bodyBuffer, offset, length) = 
         BinaryRequestInfo (Text.Encoding.UTF8.GetString (header.Array, header.Offset, 2), SuperSocket.Common.BinaryUtil.CloneRange (bodyBuffer, offset, length))
 
@@ -410,7 +407,7 @@ type Protocol() =
 
             with exn -> 
                 log Warn "Process message failed for session: %s IP: %s error: %A" session.SessionID (ipAddress session) exn
-                if not session.Authenticated then session.Close CloseReason.ProtocolError
+                session.Close CloseReason.ProtocolError
 
         let login (session:CustomProtocolSession) =
             if isInBlackList session then
