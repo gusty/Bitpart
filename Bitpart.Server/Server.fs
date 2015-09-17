@@ -89,6 +89,8 @@ type Protocol() =
     
     let [<Literal>] MvAdm = "MovieAdmin"
     let [<Literal>] MvSQL = "MovieSQL"
+    let assembly = Reflection.Assembly.GetExecutingAssembly()
+    let path = IO.Path.GetDirectoryName assembly.Location
 
     let initialMinSLL, initialMinFLL = Info, Debug
     let state = State()
@@ -206,7 +208,7 @@ type Protocol() =
                 | "O" -> reply (sprintf " -> Changing minimum file log Level to: %A"   Off  ); setFileLogLevel   Off  
                 | "l" -> 
                     reply (sprintf " -> Loading and applying blacklist ...")
-                    appServer.BlackList <- IO.File.ReadAllLines "blacklist.txt"
+                    appServer.BlackList <- IO.File.ReadAllLines (path + @"\blacklist.txt")
                     appServer.GetAllSessions() |> filter isInBlackList |> map_ (fun s -> 
                         log Warn "Session %s from %s is Blacklisted, will be disconnected immediately." s.SessionID (ipAddress s)
                         s.Close(CloseReason.ServerClosing))
@@ -237,9 +239,8 @@ type Protocol() =
                     reply (sprintf "MinLogLevel       = %A" appServer.MinLogLevel)                    
                     reply (sprintf "SendBufferSize = %i"    appServer.Config.SendBufferSize)
                     reply (sprintf "SendingQueueSize = %i"  appServer.Config.SendingQueueSize)
-                    let assembly = Reflection.Assembly.GetExecutingAssembly()
                     reply (sprintf "Server Version = %A" (assembly.GetName().Version))
-                    reply (sprintf "Path = %s" (IO.Path.GetDirectoryName(assembly.Location)))
+                    reply (sprintf "Path = %s" path)
                 | "S" ->
                     let sessionIds = state.Users |>> fun {Session = s} -> s
                     let anonymous  = appServer.GetAllSessions() |> filter (fun s -> not (exists ((==) s.SessionID) sessionIds))
