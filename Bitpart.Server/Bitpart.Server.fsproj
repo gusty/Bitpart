@@ -55,6 +55,7 @@
     <Compile Include="..\Bitpart\AssemblyInfo.fs">
       <Link>AssemblyInfo.fs</Link>
     </Compile>
+    <Compile Include="Lib.fs" />
     <Compile Include="Server.fs" />
     <None Include="packages.config" />
     <None Include="supersocket.sh" />
@@ -93,6 +94,7 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Numerics" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Bitpart\Bitpart.fsproj">

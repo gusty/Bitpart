@@ -66,11 +66,17 @@
   <ItemGroup>
     <Compile Include="Blowfish.fs" />
     <Compile Include="Protocol.fs" />
+    <Compile Include="Antiflood.fs" />
     <None Include="App.config" />
     <None Include="MSTest.runsettings" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Bitpart.Server\Bitpart.Server.fsproj">
+      <Name>Bitpart.Server</Name>
+      <Project>{5c13c5fa-80b3-4725-8eb3-6e85ab6f08e4}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\Bitpart\Bitpart.fsproj">
       <Name>Bitpart</Name>
       <Project>{0eeec09d-0e40-4e42-9a61-b5d78b7c9ba1}</Project>

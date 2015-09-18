@@ -12,6 +12,7 @@ open Bitpart.Utils
 open Bitpart.Lingo
 open Bitpart.Lingo.Pickler
 open Bitpart.Multiuser
+open System.Text.RegularExpressions
 
 module internal LogTemp = 
     let log level = logf "Bitpart.Server" level
@@ -44,21 +45,62 @@ type State() =
                 | ServerCmd f, None        -> log Error "Session not found: %s." session; users
             return! (loop())}
         loop())
-    do agent.Error.Add (log Fatal "Terminate execution due to unhandled exception in the MailboxProcessor. Exception was: %A")
+    do agent.Error.Add (log Fatal "Terminate execution due to unhandled exception in the StateMailboxProcessor. Exception was: %A")
     member this.Users              with get() = users
     member this.CurrentQueueLength with get() = agent.CurrentQueueLength
     member this.post sessionID mbxmsg = agent.Post (sessionID, mbxmsg)
+
+type AntiFloodBuffer = {RuleId : string; Regex: Regex; Counter: Counter}
+
+type AntiFloodConfig() =
+    inherit ConfigurationElement()
+    let mutable regex = null
+    [<ConfigurationProperty("id"        , IsKey = true , IsRequired = true)>] member this.Id         with get() = base.["id"        ] :?> string and set(value:string) = base.["id"        ] <- value
+    [<ConfigurationProperty("subject"   , IsKey = false, IsRequired = true)>] member this.Subject    with get() = base.["subject"   ] :?> string and set(value:string) = base.["subject"   ] <- value
+    [<ConfigurationProperty("time"      , IsKey = false, IsRequired = true)>] member this.Time       with get() = base.["time"      ] :?> float  and set(value:float ) = base.["time"      ] <- value
+    [<ConfigurationProperty("maxRepeats", IsKey = false, IsRequired = true)>] member this.MaxRepeats with get() = base.["maxRepeats"] :?> int    and set(value:int   ) = base.["maxRepeats"] <- value
+    [<ConfigurationProperty("match"     , IsKey = false, IsRequired = true)>] member this.Match      with get() = base.["match"     ] :?> float  and set(value:float ) = base.["match"     ] <- value
+    member this.CreateBuffer() = 
+        match regex with null -> regex <- Regex(Regex.Escape(this.Subject).Replace(@"\*", ".*").Replace(@"\?", "."), RegexOptions.Singleline ||| RegexOptions.Compiled) | _ -> ()
+        {RuleId = this.Id; Regex = regex; Counter = Counter(this.MaxRepeats, this.Time, this.Match)}
+
+[<ConfigurationCollection(typeof<AntiFloodConfig>)>]
+type AntiFloodConfigCollection() =
+    inherit ConfigurationElementCollection()
+    override this.CreateNewElement() = new AntiFloodConfig()  :> ConfigurationElement
+    override this.GetElementKey(e:ConfigurationElement) = (e :?> AntiFloodConfig).Id :> obj
+    
+
+
+type AntiFlood() =
+    let mutable brokenRule  = None
+    let agent = MailboxProcessor.Start(fun inbox ->
+        let rec loop() = async {
+            let! (time, buffers, msg:Message, cont, stop) = inbox.Receive()
+            match brokenRule with
+            | None ->
+                brokenRule <- buffers |> tryFind (fun b -> b.Counter.Update(msg.content, time))
+                match brokenRule with
+                | None      -> cont()
+                | Some rule -> stop rule
+            | _ -> ()
+            return! (loop())}
+        loop())
+    do agent.Error.Add (log Fatal "Terminate execution due to unhandled exception in the AntiFloodMailboxProcessor. Exception was: %A")
+    member this.post time buffers msg cont stop = agent.Post (time, buffers, msg, cont, stop)
 
 [<AllowNullLiteral>]
 type CustomProtocolSession() =
     inherit AppSession<CustomProtocolSession, BinaryRequestInfo>()
     let messageLogSize = 100
     let lastMessages   = Array.zeroCreate messageLogSize
-    member val Authenticated   = false  with get, set
-    member val ProtocolVersion = (0, 0) with get, set
-    member val ClientVersion   = (0, 0) with get, set    
-    member val MessageHash     = (-1, null)  with get, set
-    member this.CheckNewMessage msgId = 
+    member val AntiFloodState = new AntiFlood() with get
+    member val AntiFloodBuffer = []             with get, set
+    member val Authenticated   = false          with get, set
+    member val ProtocolVersion = (0, 0)         with get, set
+    member val ClientVersion   = (0, 0)         with get, set
+    member val MessageHash     = (-1, null)     with get, set
+    member this.CheckNewMessage msgId =
         let  v = lastMessages.[msgId % messageLogSize]
         if   v = msgId then log Warn "Duplicate message: %i - Session: %s" msgId this.SessionID ; false
         elif v > msgId then log Warn "New messageId: %i is too old compared with previous one: %i - Session: %s" msgId v this.SessionID; false
@@ -83,7 +125,7 @@ type FilterFactory() =
         member this.CreateFilter (appServer,  appSession,  remoteEndPoint) =
             log Debug "New socket session: %s from %s" appSession.SessionID (appSession.RemoteEndPoint.Address.ToString())
             MyReceiveFilter (appServer, appSession :?> CustomProtocolSession,  remoteEndPoint) :> IReceiveFilter<BinaryRequestInfo>
-    
+   
 type Protocol() = 
     inherit AppServer<CustomProtocolSession, BinaryRequestInfo> (FilterFactory())   
     
@@ -107,6 +149,7 @@ type Protocol() =
     member val dbFnName          = "strFunction"                   with get, set
     member val dbFnArgs          = "lstArgs"                       with get, set
     member val dbFnResult        = "varResult"                     with get, set
+    member val antiFloodRules    = []                              with get, set
 
     override appServer.Setup (rootConfig, config) =
         appServer.encKey <- config.Options.["encryptionKey"]
@@ -121,6 +164,7 @@ type Protocol() =
         appServer.dbFnName   <- defaultArg (toOption "dbFnName")   appServer.dbFnName
         appServer.dbFnArgs   <- defaultArg (toOption "dbFnArgs")   appServer.dbFnArgs
         appServer.dbFnResult <- defaultArg (toOption "dbFnResult") appServer.dbFnResult
+        appServer.antiFloodRules <- config.GetChildConfig<AntiFloodConfigCollection> "antiflood" |> Seq.cast<AntiFloodConfig> |> toList
 
         true
     
@@ -310,6 +354,7 @@ type Protocol() =
                 let msg = unpickle (messageU (if session.Authenticated then None else Some appServer.blowfishVector)) requestInfo.Body
                 antiFlood msg
                 if not session.Authenticated then
+                    session.AntiFloodBuffer <- appServer.antiFloodRules |>> fun c -> c.CreateBuffer()
                     let (|Props|) lst p = choose (fun s -> tryPick (function (str, LString v) when str = s -> Some v | _ -> None) p) lst
                     match unpickle valueU msg.content with
                     | LList [LString moviename; LString userId; LString password]
@@ -379,33 +424,40 @@ type Protocol() =
                         | [Some cmd                             , Some _    ], "adminCmd"          , Lazy (LPropList lst) -> AdminCmd (cmd, lst)
                         | [Some _                               , Some MvSQL], "DBexec"            , Lazy (LPropList lst) -> DBCmd lst
                         | recipients                                         , _                   , _                    -> UserMsg   recipients
-                    match serverMessage, lazy (tryFind (fun {Session = s} -> s == session.SessionID) state.Users) with
-                    | Function f, Lazy None -> log Debug "Session not found: %s , function: %A, message: %A" session.SessionID f (prettyPrintMsg msg)
-                    | UserMsg _ , Lazy None -> log Debug "Session not found: %s, message: %s"                session.SessionID   (prettyPrintMsg msg)
-                    | Function f, Lazy (Some sender) ->
-                        log Trace "Processing function ..."
-                        let sender, rcpts, content = head msg.recipients, [sender.Name], f sender                       
-                        log Trace "Ready to send result of processing function."
-                        let msg = writeMessage (sender, rcpts, msg.subject, pickle valueP content)
-                        if appServer.MinLogLevel = Trace then log Trace "Sending result: %s" (prettyPrintMsg msg)                        
-                        send msg session
-                    | UserMsg rcpts, Lazy (Some sender) ->
-                        log Trace "Processing message ..."
-                        let users = state.Users
-                        let sendMany recipients =
-                            let destUsers, destName, destMovie =
-                                match recipients with
-                                | Some user, None       -> filter (fun {Movie = m; Name   = n} -> n == user && m == sender.Movie) users                  , sender.Name, None
-                                | None     , Some group -> filter (fun {Movie = m; Groups = g} -> m == sender.Movie && exists ((==) ("@"+group)) g) users, sender.Name, None
-                                | Some user, Some movie -> filter (fun {Movie = m; Name   = n} -> n == user && m == movie) users                         , sender.Name, if sender.Movie == movie then None else Some sender.Movie
-                                | None     , None       -> mempty(), sender.Name, None
-                            map_ (fun user -> send {msg with errorCode = 0; timeStamp = 0; sender = destName + defaultArg (Option.map (fun x -> "@"+x) destMovie) ""} (appServer.GetSessionByID user.Session)) destUsers
-                        map_ sendMany rcpts
-                    | Command   c   , _ -> state.post session.SessionID (ServerCmd c)
-                    | AdminCmd (c,l), _ -> processAdminCommand session c l
-                    | DBCmd l, _        -> processDBCommand    session l
-                    | Invalid       , _ -> log Warn "Invalid message format received."
+                    let processServerMessage() =
+                        match serverMessage, lazy (tryFind (fun {Session = s} -> s == session.SessionID) state.Users) with
+                        | Function f, Lazy None -> log Debug "Session not found: %s , function: %A, message: %A" session.SessionID f (prettyPrintMsg msg)
+                        | UserMsg _ , Lazy None -> log Debug "Session not found: %s, message: %s"                session.SessionID   (prettyPrintMsg msg)
+                        | Function f, Lazy (Some sender) ->
+                            log Trace "Processing function ..."
+                            let sender, rcpts, content = head msg.recipients, [sender.Name], f sender                       
+                            log Trace "Ready to send result of processing function."
+                            let msg = writeMessage (sender, rcpts, msg.subject, pickle valueP content)
+                            if appServer.MinLogLevel = Trace then log Trace "Sending result: %s" (prettyPrintMsg msg)                        
+                            send msg session
+                        | UserMsg rcpts, Lazy (Some sender) ->
+                            log Trace "Processing message ..."
+                            let users = state.Users
+                            let sendMany recipients =
+                                let destUsers, destName, destMovie =
+                                    match recipients with
+                                    | Some user, None       -> filter (fun {Movie = m; Name   = n} -> n == user && m == sender.Movie) users                  , sender.Name, None
+                                    | None     , Some group -> filter (fun {Movie = m; Groups = g} -> m == sender.Movie && exists ((==) ("@"+group)) g) users, sender.Name, None
+                                    | Some user, Some movie -> filter (fun {Movie = m; Name   = n} -> n == user && m == movie) users                         , sender.Name, if sender.Movie == movie then None else Some sender.Movie
+                                    | None     , None       -> mempty(), sender.Name, None
+                                map_ (fun user -> send {msg with errorCode = 0; timeStamp = 0; sender = destName + defaultArg (Option.map (fun x -> "@"+x) destMovie) ""} (appServer.GetSessionByID user.Session)) destUsers
+                            map_ sendMany rcpts
+                        | Command   c   , _ -> state.post session.SessionID (ServerCmd c)
+                        | AdminCmd (c,l), _ -> processAdminCommand session c l
+                        | DBCmd l, _        -> processDBCommand    session l
+                        | Invalid       , _ -> log Warn "Invalid message format received."
 
+                    match filter (fun {Regex = r} -> r.IsMatch msg.subject) session.AntiFloodBuffer with
+                    | []      -> processServerMessage()
+                    | buffers -> session.AntiFloodState.post DateTime.Now buffers msg processServerMessage (fun rule -> 
+                                    log Warn "Messages %i from session %s ip:%s over rule '%s' tolerance, last message was: %A" msg.errorCode session.SessionID (ipAddress session) rule.RuleId (prettyPrintMsg msg)
+                                    state.post session.SessionID (ServerCmd Delete))
+                    
             with exn -> 
                 log Warn "Process message failed for session: %s IP: %s error: %A" session.SessionID (ipAddress session) exn
                 session.Close CloseReason.ProtocolError
@@ -425,7 +477,7 @@ type Protocol() =
 
         appServer.add_NewRequestReceived  (RequestHandler<CustomProtocolSession, Protocol.BinaryRequestInfo> appServer_NewRequestReceived)
         appServer.add_NewSessionConnected (SessionHandler<CustomProtocolSession> login)
-        appServer.add_SessionClosed       (SessionHandler<CustomProtocolSession,CloseReason> logout)
+        appServer.add_SessionClosed       (SessionHandler<CustomProtocolSession, CloseReason> logout)
 
 
         let status e =
