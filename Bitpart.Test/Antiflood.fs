@@ -67,7 +67,7 @@ type Antiflood() =
         state.post (time + TimeSpan.FromMilliseconds  500.) [rule] msg1 ignore fail
         state.post (time + TimeSpan.FromMilliseconds  600.) [rule] msg1 ignore fail
         state.post (time + TimeSpan.FromMilliseconds  700.) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  800.) [rule] msg2 ignore fail //9th msg, but subject changed
+        state.post (time + TimeSpan.FromMilliseconds  800.) [rule] msg2 ignore fail //9th msg, but content changed
         state.post (time + TimeSpan.FromMilliseconds  900.) [rule] msg2 ignore fail
         state.post (time + TimeSpan.FromMilliseconds 2000.) [rule] msg2 ignore fail
         state.post (time + TimeSpan.FromMilliseconds 2100.) [rule] msg2 ignore fail
