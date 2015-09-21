@@ -196,7 +196,7 @@ type Protocol() =
                             h.[r]
                     order, hashReceived = hashExpected order
                 else msg.errorCode, true
-            if not hashOK || (session.ProtocolVersion > (1,0) && (not (session.CheckMessageOrder order))) then
+            if not hashOK || (session.ProtocolVersion > (1, 0) && not (session.CheckMessageOrder order)) then
                 log Warn "Message %i from session %A is not valid%s: %A" msg.errorCode session (if hashOK then "" else ", hash doesn't match") (prettyPrintMsg msg)
                 false
             else true
@@ -312,13 +312,13 @@ type Protocol() =
                 | "q" -> reply (sprintf " -> agent.CurrentQueueLength = %i" state.CurrentQueueLength)
                 | "s" -> 
                     reply (" -> Server Status")                    
-                    reply (sprintf "Server running since: %s" (appServer.StartedTime.ToString("yyyy-MMM-dd hh:mm:ss")))
+                    reply (sprintf "Server running since: %s" (formatDateTime appServer.StartedTime))
                     reply (sprintf "Max Connection Limit = %i" appServer.Config.MaxConnectionNumber)
                     reply (sprintf "agent.CurrentQueueLength = %i" state.CurrentQueueLength)
                     reply (sprintf "Users   : %i" (length state.Users))
                     reply (sprintf "Sessions: %i" appServer.SessionCount)                
-                    reply (sprintf "Max Users   : = %i at %s" (fst appServer.MaxUserCount   ) ((snd appServer.MaxUserCount   ).ToString("yyyy-MM-dd HH:mm:ss:fff")))
-                    reply (sprintf "Max Sessions: = %i at %s" (fst appServer.MaxSessionCount) ((snd appServer.MaxSessionCount).ToString("yyyy-MM-dd HH:mm:ss:fff")))
+                    reply (sprintf "Max Users   : = %i at %s" <|| second formatDateTime appServer.MaxUserCount   )
+                    reply (sprintf "Max Sessions: = %i at %s" <|| second formatDateTime appServer.MaxSessionCount)
                     reply (sprintf "MinScreenLogLevel = %A" appServer.MinScreenLogLevel)
                     reply (sprintf "MinFileLogLevel   = %A" appServer.MinFileLogLevel)
                     reply (sprintf "MinLogLevel       = %A" appServer.MinLogLevel)                    
@@ -329,7 +329,7 @@ type Protocol() =
                 | "S" ->
                     let sessionIds = state.Users |>> fun {Session = s} -> s
                     let anonymous  = appServer.GetAllSessions() |> filter (fun s -> not (exists ((==) s.SessionID) sessionIds))
-                    let lines      = anonymous |>> fun s -> sprintf "Session: %A Start: %A Last: %A" s s.StartTime s.LastActiveTime
+                    let lines      = anonymous |>> fun s -> sprintf "Session: %A Started at: %s Last active: %s" s (formatDateTime s.StartTime) (formatDateTime s.LastActiveTime)
                     let asText     = String.concat nl lines
                     reply (sprintf " -> Sessions pending authentication %s%s" nl asText)
                 | "c" -> 

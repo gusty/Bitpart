@@ -23,6 +23,8 @@ module Log =
         | LogLevel.Warn  -> ConsoleColor.Yellow
         | _              -> ConsoleColor.Red    
 
+    let formatDateTime (dt:DateTime) = dt.ToString("yyyy-MM-dd HH:mm:ss:fff")
+
     let logLine appmodule level (time:DateTime) str minScreenLogLevel minFileLogLevel fileName =
         let printToConsole level (text:string) =
             let originalColor = Console.ForegroundColor
@@ -30,7 +32,7 @@ module Log =
             Console.WriteLine text
             Console.ForegroundColor <- originalColor
 
-        let formatLine appmodule = sprintf "%s| %s| %A| %s" (time.ToString("yyyy-MM-dd HH:mm:ss:fff")) appmodule
+        let formatLine appmodule = sprintf "%s| %s| %A| %s" (formatDateTime time) appmodule
         if level >= minScreenLogLevel then printToConsole level (formatLine appmodule level str)
         if level >= minFileLogLevel then 
             try IO.File.AppendAllLines (path + "\\" + fileName + "-" + DateTime.Now.ToString("yyyyMMdd") + ".csv", [formatLine appmodule level str])
