@@ -12,6 +12,9 @@ open System
 
 [<TestClass>]
 type Antiflood() =
+
+    let check rule time msg = rule.Counter.Update(msg.content, time)
+
     [<TestMethod>]        
     member this.Max8repetitionsInLessThan1sec() =
         let sbj, repetitions, time, mtch = "chat", 8, 1000., 100.
@@ -50,36 +53,29 @@ type Antiflood() =
                 timeStamp   = 2015
             }
 
-        let mutable finished = false
-        let mutable passed = false
-        let state = new AntiFlood()
-        let fail rule =
-            finished <- true
-        let pass r =
-            passed   <- true
-            finished <- true
+        
+        let check = check rule
         let time = System.DateTime.Now
-        state.post (time                                  ) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  100.) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  200.) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  300.) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  400.) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  500.) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  600.) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  700.) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  800.) [rule] msg2 ignore fail //9th msg, but content changed
-        state.post (time + TimeSpan.FromMilliseconds  900.) [rule] msg2 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds 2000.) [rule] msg2 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds 2100.) [rule] msg2 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds 2200.) [rule] msg2 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds 2300.) [rule] msg2 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds 2400.) [rule] msg2 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds 2500.) [rule] msg2 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds 2600.) [rule] msg2 ignore fail // 9th msg, but time OK
-        state.post (time + TimeSpan.FromMilliseconds 2700.) [rule] msg2 ignore fail //10th msg, but time OK
-        state.post (time + TimeSpan.FromMilliseconds 2800.) [rule] msg2 fail   pass //11th msg, time less than interval
-        while not finished do ()
-        Assert.IsTrue(passed)
+        Assert.IsFalse(check (time                                  ) msg1) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  100.) msg1) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  200.) msg1) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  300.) msg1) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  400.) msg1) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  500.) msg1) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  600.) msg1) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  700.) msg1) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  800.) msg2) //9th msg, but content changed
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  900.) msg2) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds 2000.) msg2) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds 2100.) msg2) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds 2200.) msg2) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds 2300.) msg2) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds 2400.) msg2) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds 2500.) msg2) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds 2600.) msg2) // 9th msg, but time OK
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds 2700.) msg2) //10th msg, but time OK
+        Assert.IsTrue (check (time + TimeSpan.FromMilliseconds 2800.) msg2) //11th msg, time less than interval
+ 
 
 
     [<TestMethod>]        
@@ -116,20 +112,12 @@ type Antiflood() =
                 timeStamp   = 2015
             }
 
-        let mutable finished = false
-        let mutable passed = false
-        let state = new AntiFlood()
-        let fail rule =
-            finished <- true
-        let pass r =
-            passed   <- true
-            finished <- true
+        let check = check rule
         let time = System.DateTime.Now
-        state.post (time                                  ) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  100.) [rule] msg1 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  200.) [rule] msg2 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  300.) [rule] msg2 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds  400.) [rule] msg2 ignore fail
-        state.post (time + TimeSpan.FromMilliseconds 2800.) [rule] msg2 fail   pass //6th msg 90% equal
-        while not finished do ()
-        Assert.IsTrue(passed)
+
+        Assert.IsFalse(check (time                                  ) msg1) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  100.) msg1) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  200.) msg2) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  300.) msg2) 
+        Assert.IsFalse(check (time + TimeSpan.FromMilliseconds  400.) msg2) 
+        Assert.IsTrue (check (time + TimeSpan.FromMilliseconds 2800.) msg2) //6th msg 90% equal
