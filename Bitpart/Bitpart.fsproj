@@ -10,9 +10,8 @@
     <RootNamespace>Bitpart</RootNamespace>
     <AssemblyName>Bitpart</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
+    <TargetFSharpCoreVersion>4.4.3.0</TargetFSharpCoreVersion>
     <Name>Bitpart</Name>
-    <NoWarn>3186</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -35,21 +34,19 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="FParsec">
-      <HintPath>..\packages\FParsec-Big-Data-Edition.1.0.1\lib\net45\FParsec.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\packages\FParsec-Big-Data-Edition.1.0.3\lib\net45\FParsec.dll</HintPath>
     </Reference>
     <Reference Include="FParsecCS">
-      <HintPath>..\packages\FParsec-Big-Data-Edition.1.0.1\lib\net45\FParsecCS.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\packages\FParsec-Big-Data-Edition.1.0.3\lib\net45\FParsecCS.dll</HintPath>
     </Reference>
-    <Reference Include="FsControl.Core">
-      <HintPath>..\packages\FsControl.2.0.0-CI00008\lib\net40\FsControl.Core.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="FSharp.Core">
+      <HintPath>..\packages\FSharp.Core.4.3.4\lib\net45\FSharp.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="FSharpPlus">
+      <HintPath>..\packages\FSharpPlus.1.0.0\lib\net45\FSharpPlus.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib" />
-    <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-      <Private>True</Private>
-    </Reference>
+
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />

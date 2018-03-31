@@ -1,7 +1,7 @@
 ﻿namespace Bitpart.Test
 
 open Microsoft.VisualStudio.TestTools.UnitTesting
-open FsControl.Operators
+open FSharpPlus
 
 [<TestClass>]
 type Blowfish() =    
@@ -56,7 +56,7 @@ type Blowfish() =
     [<TestMethod>]
     member this.DecryptTime() =
         let s = System.DateTime.Now
-        {1..100000} |> map_ (fun _ ->
+        {1..100000} |> iter (fun _ ->
             let dec, decblock = this.Decrypt(), this.DecryptKeyBlockTest()
             ())
         #if DEBUG

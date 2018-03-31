@@ -4,7 +4,7 @@ open System
 open System.Net
 open System.Net.Sockets
 open System.Configuration
-open FsControl.Operators
+open FSharpPlus
 open Bitpart.Log
 open Bitpart.Utils
 open Bitpart.Lingo
@@ -27,12 +27,12 @@ module Client =
         let decode msg =
             let unPackMessage (bytes:byte []) encKey = unpickle (messageU encKey) (skip 6 bytes <|> [|0uy; 0uy|])
             try  Some (unPackMessage msg None)
-            with exn -> log Error "Exception decoding message: %A" exn; None
+            with exn -> log Fail "Exception decoding message: %A" exn; None
         let rec receiveMsg size soFar =
             let ans = Array.zeroCreate maxMessageSize
             match (try socket.Receive (ans, size, SocketFlags.None) with exn -> -1) with
-            | -1 -> log Error "Exception while receiving from server."; [||]
-            |  0 -> log Error "0 bytes received but %i bytes were requested." size; [||]
+            | -1 -> log Fail "Exception while receiving from server."; [||]
+            |  0 -> log Fail "0 bytes received but %i bytes were requested." size; [||]
             |  n ->
                 log Trace "received %i byte(s) from server" n
                 let r = soFar <|> ans.[0..n-1]
@@ -42,7 +42,7 @@ module Client =
         let bytes = receiveMsg 6 [||]
         if bytes = [||] then None
         else
-            let msgSize = fromBytesWithOptions false 2 bytes
+            let msgSize = ofBytesWithOptions false 2 bytes
             log Trace "Size is %i byte(s)" msgSize
             if not (bytes.[0..1] = [|114uy;0uy|]) then
                 let n = socket.Receive (Array.create maxMessageSize 0uy)
@@ -142,7 +142,7 @@ module Client =
                                 LPropList [], false
                             else 
                                 let allMovies = "AllMovies"
-                                let movies = allMovies :: !_movies |> zip {0..maxValue()}
+                                let movies = allMovies :: !_movies |> toSeq |> zip {0..maxValue}
                                 movies |> iter (fun (i,m) -> printfn "(%i) %s" i m)
                                 printf "Movie #:"
                                 let input = Console.ReadLine()
@@ -190,7 +190,7 @@ module Client =
             let rec loop status = async {
                 match status with
                 | Some exn ->
-                    log Error "Exception while connecting: %A" exn
+                    log Fail "Exception while connecting: %A" exn
                     socket.Dispose()
                     return ()
                 | None ->            

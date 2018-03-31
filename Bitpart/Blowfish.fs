@@ -1,7 +1,7 @@
 ﻿namespace Bitpart
 
 open Bitpart.Utils
-open FsControl.Operators
+open FSharpPlus
 
 module Blowfish =  
 
@@ -280,7 +280,7 @@ module Blowfish =
         let mutable _lCBCIV = 0L
         for nI in 0..8..buffer.Length-1 do
             _lCBCIV <- decryptBlock (pbox, sbox1, sbox2, sbox3, sbox4) _lCBCIV
-            inPlaceInt64ToBytes (_lCBCIV ^^^ fromBytesWithOptions false nI buffer) buffer nI
+            inPlaceInt64ToBytes (_lCBCIV ^^^ ofBytesWithOptions false nI buffer) buffer nI
 
 
     let blowfish vector (data:byte[]) =

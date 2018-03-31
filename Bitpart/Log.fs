@@ -6,7 +6,7 @@ type LogLevel = Trace = 0 | Debug = 1 | Info = 2 | Warn = 3 | Error = 4 | Fatal 
    
 module Log =
 
-    let Trace, Debug, Info, Warn, Error, Fatal, Off = 
+    let Trace, Debug, Info, Warn, Fail, Fatal, Off = 
         LogLevel.Trace, LogLevel.Debug, LogLevel.Info, LogLevel.Warn, LogLevel.Error, LogLevel.Fatal, LogLevel.Off
 
     open System
@@ -36,7 +36,7 @@ module Log =
         if level >= minScreenLogLevel then printToConsole level (formatLine appmodule level str)
         if level >= minFileLogLevel then 
             try IO.File.AppendAllLines (path + "\\" + fileName + "-" + DateTime.Now.ToString("yyyyMMdd") + ".csv", [formatLine appmodule level str])
-            with exn -> printToConsole Error (formatLine "Logging" Error (sprintf "Could not log into file %s : %A" fileName exn))
+            with exn -> printToConsole Fail (formatLine "Logging" Fail (sprintf "Could not log into file %s : %A" fileName exn))
 
     type LogMessage =
         | Log of DateTime * string * LogLevel * string

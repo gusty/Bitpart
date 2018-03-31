@@ -1,7 +1,7 @@
 ﻿module Bitpart.Multiuser
  
 open System
-open FsControl.Operators
+open FSharpPlus
 open Bitpart.Utils
 open Bitpart.Lingo
 open Bitpart.Lingo.Pickler
@@ -38,7 +38,7 @@ let messageP encryptionKey msg st =
     stringP msg.subject st 
     stringP msg.sender  st
     numP (length msg.recipients) st
-    map_ (fun recipient -> stringP recipient st) msg.recipients
+    iter (fun recipient -> stringP recipient st) msg.recipients
     st.Write (match encryptionKey with Some key -> Blowfish.encode key msg.content | _ -> msg.content)
 
 let messageU encryptionKeyVectors st =

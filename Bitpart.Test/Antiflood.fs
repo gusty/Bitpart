@@ -1,7 +1,7 @@
 ﻿namespace Bitpart.Test
 
 open Microsoft.VisualStudio.TestTools.UnitTesting
-open FsControl.Operators
+open FSharpPlus
 open Bitpart.Utils
 open Bitpart.Lingo
 open Bitpart.Lingo.Pickler

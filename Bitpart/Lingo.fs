@@ -1,7 +1,7 @@
 ﻿namespace Bitpart
 
 open System
-open FsControl.Operators
+open FSharpPlus
 open FsParsec
 open Bitpart.Utils
 
@@ -99,7 +99,7 @@ module Lingo =
             | LFloat   float     -> numP Float   st; numP    float   st
             | LSymbol  string    -> numP Symbol  st; stringP string  st
             | LString  string    -> numP String  st; stringP string  st
-            | LList    list      -> numP List    st; numP (length list) st; map_ (fun e -> valueP e st) list
+            | LList    list      -> numP List    st; numP (length list) st; iter (fun e -> valueP e st) list
             | LPoint   (x, y)    -> numP Point   st; valueP  x st; valueP y st
             | LRect (a, b, c, d) -> numP Rect    st; valueP  a st; valueP b st; valueP c st; valueP d st
             | LVector  (x, y, z) -> numP Vector  st; numP x st; numP y st; numP z st
@@ -107,7 +107,7 @@ module Lingo =
                 numP Transform st
                 numP p0 st; numP p1 st; numP p2 st; numP p3 st; numP p4 st; numP p5 st; numP p6 st; numP p7 st
                 numP p8 st; numP p9 st; numP pa st; numP pb st; numP pc st; numP pd st; numP pe st; numP pf st
-            | LPropList list  -> numP PropList st; numP (length list) st; map_ (fun (k, v) -> numP Symbol st; stringP k st; valueP v st) list
+            | LPropList list  -> numP PropList st; numP (length list) st; iter (fun (k, v) -> numP Symbol st; stringP k st; valueP v st) list
             | LColor  (r,g,b) -> numP Color   st; byteP 1uy st; byteP (byte r) st; byteP (byte g) st; byteP (byte b) st;
             | LDate (y,m,d,s) -> numP Date    st; dateP (y, m, d, s)  st
             | LPicture bytes  -> numP Picture st; chunkP bytes st

@@ -1,6 +1,6 @@
 ﻿namespace FsParsec
 
-/// This is basically an FParsec wrapper compatible with FsControl
+/// This is basically an FParsec wrapper compatible with FSharpPlus
 type Parser<'u, 'a> = Parser of (FParsec.CharStream<'u> -> FParsec.Reply<'a>)
 
 [<AutoOpenAttribute>]
@@ -59,11 +59,11 @@ module Parser =
         let r = createParserForwardedToRef() |> fst |> Parser |> ref
         Parser (fun stream -> unwrap !r stream), r
 
-open FsControl.Core.TypeMethods
+open FSharpPlus.Control
 
-type Parser with
+type Parser<'u, 'a> with
     static member Map (Parser x, f) = Parser (FParsec.Primitives.(|>>) x f)
     static member Return (x) =  Parser.preturn x
-    static member Bind (Parser x, f) = Parser (FParsec.Primitives.(>>=) x (f >> Parser.unwrap)):Parser<'s,'b>
-    static member Zero (_:Parser<'s,'a>, _) = Parser.pzero
-    static member Plus (Parser x, Parser y, _) = Parser (FParsec.Primitives.(<|>) x y)
+    static member (>>=) (Parser x, f) = Parser (FParsec.Primitives.(>>=) x (f >> Parser.unwrap)):Parser<'s,'b>
+    static member Empty = Parser.pzero
+    static member (<|>) (Parser x, Parser y) = Parser (FParsec.Primitives.(<|>) x y)

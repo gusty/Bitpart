@@ -1,7 +1,7 @@
 ﻿namespace Bitpart
 
 open System
-open FsControl.Operators
+open FSharpPlus
 
 module Utils =   
 
@@ -22,7 +22,7 @@ module Utils =
     let byteU          (st:instate ) = st.ReadByte ()
 
     let inline numP (num: 'T) (st:outstate) = st.Write (toBytesBE num)
-    let inline numU (st:instate) = fromBytesBE (st.ReadBytes sizeof<'T>) :'T
+    let inline numU (st:instate) = ofBytesBE (st.ReadBytes sizeof<'T>) :'T
 
     let writeString   (s:string) (st:outstate) = s |> encoding.GetBytes |> st.Write
 
