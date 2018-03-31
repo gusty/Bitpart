@@ -70,23 +70,22 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="log4net">
-      <HintPath>..\packages\log4net.2.0.0\lib\net40-full\log4net.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
     </Reference>
     <Reference Include="SuperSocket.Common">
-      <HintPath>..\packages\SuperSocket.1.6.4\lib\net45\SuperSocket.Common.dll</HintPath>
+      <HintPath>..\packages\SuperSocket.1.6.6.1\lib\net45\SuperSocket.Common.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="SuperSocket.Facility">
-      <HintPath>..\packages\SuperSocket.1.6.4\lib\net45\SuperSocket.Facility.dll</HintPath>
+      <HintPath>..\packages\SuperSocket.1.6.6.1\lib\net45\SuperSocket.Facility.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="SuperSocket.SocketBase">
-      <HintPath>..\packages\SuperSocket.1.6.4\lib\net45\SuperSocket.SocketBase.dll</HintPath>
+      <HintPath>..\packages\SuperSocket.1.6.6.1\lib\net45\SuperSocket.SocketBase.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -104,10 +103,13 @@
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
-    <PostBuildEvent>xcopy /Q /Y "../../../packages/SuperSocket.1.6.4/lib/net45" 
-xcopy /Q /Y "../../../packages/SuperSocket.1.6.4/content" "Config\"
-del /Q "SuperSocket.SocketService.exe.config"
-rename "$(TargetPath).config" "SuperSocket.SocketService.exe.config"</PostBuildEvent>
+    <PostBuildEvent>
+      xcopy /Q /Y "../../../packages/SuperSocket.1.6.6.1/lib/net45"
+      xcopy /Q /Y "../../../packages/SuperSocket.Engine.1.6.6.1/lib/net45"
+      xcopy /Q /Y /I "..\..\log4net.*" "Config"
+      xcopy /Q /Y /I "..\..\supersocket.*" "Config"
+      del /Q "SuperSocket.SocketService.exe.config"
+      rename "$(TargetPath).config" "SuperSocket.SocketService.exe.config"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
