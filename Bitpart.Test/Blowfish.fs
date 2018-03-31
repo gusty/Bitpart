@@ -58,5 +58,9 @@ type Blowfish() =
         let s = System.DateTime.Now
         {1..100000} |> map_ (fun _ ->
             let dec, decblock = this.Decrypt(), this.DecryptKeyBlockTest()
-            ()) 
+            ())
+        #if DEBUG
+        Assert.IsTrue  ((System.DateTime.Now - s).TotalMilliseconds < 2000.)
+        #else
         Assert.IsTrue  ((System.DateTime.Now - s).TotalMilliseconds < 400.)
+        #endif
