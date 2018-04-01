@@ -17,7 +17,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.4.3.0</TargetFSharpCoreVersion>
-  </PropertyGroup>  
+  </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
@@ -66,7 +66,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Bitpart.Server\Bitpart.Server.fsproj">
       <Name>Bitpart.Server</Name>
-      <Project>{5c13c5fa-80b3-4725-8eb3-6e85ab6f08e4}</Project>
+      <Project>{b29ca27a-11a0-4af0-9145-5102dc680396}</Project>
       <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\Bitpart\Bitpart.fsproj">

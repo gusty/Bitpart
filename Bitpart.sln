@@ -1,13 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30501.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.27428.2002
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Bitpart", "Bitpart\Bitpart.fsproj", "{0EEEC09D-0E40-4E42-9A61-B5D78B7C9BA1}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Bitpart.Client", "Bitpart.Client\Bitpart.Client.fsproj", "{B10DA75A-27AA-47C1-BA77-94F870EB91CC}"
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Bitpart.Server", "Bitpart.Server\Bitpart.Server.fsproj", "{5C13C5FA-80B3-4725-8EB3-6E85AB6F08E4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{FE42A417-49EF-43D3-BD3A-F3A8A7459CEA}"
 	ProjectSection(SolutionItems) = preProject
@@ -15,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{FE42A4
 	EndProjectSection
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Bitpart.Test", "Bitpart.Test\Bitpart.Test.fsproj", "{27D00269-F16B-4CF6-9DF2-35839436A7F2}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Bitpart.Server", "Bitpart.Server\Bitpart.Server.fsproj", "{B29CA27A-11A0-4AF0-9145-5102DC680396}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -30,16 +30,19 @@ Global
 		{B10DA75A-27AA-47C1-BA77-94F870EB91CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B10DA75A-27AA-47C1-BA77-94F870EB91CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B10DA75A-27AA-47C1-BA77-94F870EB91CC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5C13C5FA-80B3-4725-8EB3-6E85AB6F08E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5C13C5FA-80B3-4725-8EB3-6E85AB6F08E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5C13C5FA-80B3-4725-8EB3-6E85AB6F08E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5C13C5FA-80B3-4725-8EB3-6E85AB6F08E4}.Release|Any CPU.Build.0 = Release|Any CPU
 		{27D00269-F16B-4CF6-9DF2-35839436A7F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{27D00269-F16B-4CF6-9DF2-35839436A7F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{27D00269-F16B-4CF6-9DF2-35839436A7F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{27D00269-F16B-4CF6-9DF2-35839436A7F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B29CA27A-11A0-4AF0-9145-5102DC680396}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B29CA27A-11A0-4AF0-9145-5102DC680396}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B29CA27A-11A0-4AF0-9145-5102DC680396}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B29CA27A-11A0-4AF0-9145-5102DC680396}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DB35583D-BAE4-4570-AD7D-CE97AB4D47C6}
 	EndGlobalSection
 EndGlobal
