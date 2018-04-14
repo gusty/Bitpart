@@ -56,7 +56,7 @@ module Log =
                     | SetScreenLevel level -> level, fl   , fn
                     | SetFileLevel   level -> sl   , level, fn
                     | SetFileName    name  -> sl   , fl   , name                    
-                with exn -> sl, fl, fn
+                with _ -> sl, fl, fn
             return! loop sl fl fn }
         loop minScreenLogLevel minFileLogLevel defaultFileName)
 

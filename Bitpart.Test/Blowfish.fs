@@ -47,7 +47,7 @@ type Blowfish () =
         Assert.IsTrue  assertion
 
     [<TestMethod>]   
-    member this.DecryptKeyBlockTest () =
+    member __.DecryptKeyBlockTest () =
         let lCipherBlock = 203447117607259685L
         let expected = -2567789888536546563L
         let actual = Bitpart.Blowfish.decryptBlock target lCipherBlock

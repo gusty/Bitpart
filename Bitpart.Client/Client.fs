@@ -30,7 +30,7 @@ module Client =
             with exn -> log Fail "Exception decoding message: %A" exn; None
         let rec receiveMsg size soFar =
             let ans = Array.zeroCreate maxMessageSize
-            match (try socket.Receive (ans, size, SocketFlags.None) with exn -> -1) with
+            match (try socket.Receive (ans, size, SocketFlags.None) with _ -> -1) with
             | -1 -> log Fail "Exception while receiving from server."; [||]
             |  0 -> log Fail "0 bytes received but %i bytes were requested." size; [||]
             |  n ->
@@ -82,7 +82,7 @@ module Client =
                     content    = content
                   }
         try 
-            let numberOfBytes = socket.Send (packMessage None msg)
+            let _numberOfBytes = socket.Send (packMessage None msg)
             None
         with exn -> Some exn
 
@@ -90,14 +90,14 @@ module Client =
 
 
     [<EntryPoint>]
-    let main argv = 
+    let main _argv =
 
         let nvc = ConfigurationManager.GetSection "servers" :?> Collections.Specialized.NameValueCollection
 
-        let servers = nvc.AllKeys |> mapi (fun i k ->
+        let servers = nvc.AllKeys |>> (fun k ->
             let s = nvc.[k]
             let p = s.IndexOf ';'
-            let ipPort, encKey = s.[..p-1], s.[p+1..]
+            let ipPort, _encKey = s.[..p-1], s.[p+1..]
             match split [":"] ipPort with
             | [ip; port] ->
                 k, ip, parse port, s.[p+1..]
@@ -127,7 +127,7 @@ module Client =
 
         let socket = new Socket (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.IP)
         let usrName = Guid.NewGuid().ToString("N").[..11].ToUpper () + "usrAdmin"
-        let _movies = ref []
+        let mutable movies = []
 
         let hold () =
             let rec loop () =
@@ -137,13 +137,13 @@ module Client =
                         match cmd with
                         | 'M' -> 
                             printfn " -> Move to Net Server"
-                            if length !_movies < 2 then
+                            if length movies < 2 then
                                 printfn "No movies"
                                 LPropList [], false
                             else 
                                 let allMovies = "AllMovies"
-                                let movies = allMovies :: !_movies |> List.indexed
-                                movies |> iter (fun (i,m) -> printfn "(%i) %s" i m)
+                                let movies = allMovies :: movies |> List.indexed
+                                movies |> iter (fun (i, m) -> printfn "(%i) %s" i m)
                                 printf "Movie #:"
                                 let input = Console.ReadLine ()
                                 let movieIds = input |> split [|","|] |>> fun s -> skip (parse s) movies |> head |> snd
@@ -159,7 +159,7 @@ module Client =
                                     printfn "\nCanceled"
                                     LPropList [], false
                     
-                        | c   -> LPropList [], true
+                        | _   -> LPropList [], true
                     if cnf then sendMessage usrName socket ([cmd.ToString() + "@" + adminMovie], "adminCmd", pickle valueP cnt) |> ignore
                 with exn -> printfn "%A" exn
                 loop ()
@@ -180,7 +180,7 @@ module Client =
                    None
                 | "getMovies" ->
                    match unpickle valueU message.content with
-                   | LList lst -> _movies := lst |> choose (function LString s -> Some s | _ -> None)
+                   | LList lst -> movies <- lst |> choose (function LString s -> Some s | _ -> None)
                    | _         -> log Warn "Unknown reply format."
                    None
                 | _ -> None

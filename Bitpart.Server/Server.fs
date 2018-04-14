@@ -46,9 +46,9 @@ type State () =
             return! loop ()}
         loop ())
     do agent.Error.Add (log Fatal "Terminate execution due to unhandled exception in the StateMailboxProcessor. Exception was: %A")
-    member this.Users              with get () = users
-    member this.CurrentQueueLength with get () = agent.CurrentQueueLength
-    member this.post sessionID mbxmsg = agent.Post (sessionID, mbxmsg)
+    member __.Users              with get () = users
+    member __.CurrentQueueLength with get () = agent.CurrentQueueLength
+    member __.post sessionID mbxmsg = agent.Post (sessionID, mbxmsg)
 
 type AntiFloodRule = {RuleId: string; Regex: Regex; Counter: Counter}
 
@@ -382,7 +382,7 @@ type Protocol () =
                         | [Some (CI "system.movie.getUserCount"), Some movie], _                   , _                    -> Function (GetUserCount movie)
                         | [Some (CI "system.server.getMovies"  ), _         ], _                   , _                    -> Function  GetMovies
                         | [Some (CI "System"                   ), _         ], CI "getGroupMembers", Lazy (LString group) -> Function (GetGroupMembers group)
-                        | [Some (CI "system.user.delete"       ), _         ], _                   , Lazy (LString user)  -> Command   Delete
+                        | [Some (CI "system.user.delete"       ), _         ], _                   , Lazy (LString _user) -> Command   Delete
                         | [Some (CI "System"                   ), None      ], CI "joinGroup"      , Lazy (LString group) -> Command  (Join group )
                         | [Some (CI "System"                   ), None      ], CI "leaveGroup"     , Lazy (LString group) -> Command  (Leave group)           
                         | [Some cmd                             , Some _    ], "adminCmd"          , Lazy (LPropList lst) -> AdminCmd (cmd, lst)

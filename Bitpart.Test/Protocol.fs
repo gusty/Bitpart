@@ -10,7 +10,7 @@ open Bitpart.Multiuser
 [<TestClass>]
 type Protocol () =
     [<TestMethod>]        
-    member this.PickleUnpickle () =
+    member __.PickleUnpickle () =
         let msg1 = 
             {
                 sender      = "TheSender_ñéè"
@@ -39,7 +39,7 @@ type Protocol () =
         Assert.IsTrue ((System.DateTime.Now - s).TotalMilliseconds < 2000.)
 
     [<TestMethod>] 
-    member this.ParseToString () =     
+    member __.ParseToString () =     
         let v1 = 
             LPropList [
                 "move"  , LList [LRect (LInteger 2, LFloat -2879.54, LInteger -7984, LFloat 1.1)]
