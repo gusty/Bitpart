@@ -142,7 +142,7 @@ module Client =
                                 LPropList [], false
                             else 
                                 let allMovies = "AllMovies"
-                                let movies = allMovies :: !_movies |> toSeq |> zip {0..maxValue}
+                                let movies = allMovies :: !_movies |> List.indexed
                                 movies |> iter (fun (i,m) -> printfn "(%i) %s" i m)
                                 printf "Movie #:"
                                 let input = Console.ReadLine()
