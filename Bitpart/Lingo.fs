@@ -35,8 +35,8 @@ module Lingo =
                 | LRect (a, b, c, d) -> sprintf "rect(%O, %O, %O, %O)" a b c d
                 | LColor   (r, g, b) -> sprintf "color(%i, %i, %i)"  r g b
                 | LVector  (x, y, z) -> sprintf "vector(%f, %f, %f)" x y z
-                | LList     l -> "[" + String.concat ", " (l |>> (box >> string))  + "]"
-                | LPropList m -> "[" + String.concat ", " (m |>> fun (k, v) -> "#" + k + ": " + string (box v))   + "]"
+                | LList     l -> "[" + intercalate ", " (l |>> (box >> string))  + "]"
+                | LPropList m -> "[" + intercalate ", " (m |>> fun (k, v) -> "#" + k + ": " + string (box v))   + "]"
                 | LDate (y,m,d,s) -> sprintf "date (%i, %i, %i) + %i seconds" y m d s
                 | LTransform (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) ->
                     sprintf  "transform(%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f)" a b c d e f g h i j k l m n o p
@@ -177,7 +177,7 @@ module Lingo =
 
         let pSymbol = str "#" >>. pIdentifier
         let lsymbol = pSymbol |>> LSymbol
-        let lfloat = (str "." >>. pint32 |>> (string >> (+) "0." >> System.Double.Parse >> LFloat)) <|> (pfloat |>> LFloat)
+        let lfloat = (str "." >>. pint32 |>> (string >> (+) "0." >> parse >> LFloat)) <|> (pfloat |>> LFloat)
         let linteger = pint32 .>> notFollowedBy (pstring ".") |>> LInteger
         let ltrue  = stringCIReturn "true"  (LInteger 1)
         let lfalse = stringCIReturn "false" (LInteger 0)
@@ -225,7 +225,7 @@ module Lingo =
             | Choice1Of2 res -> result <- res; true
             | Choice2Of2 err -> false
 
-        static member Parse (s:string, culture:Globalization.CultureInfo) =
+        static member Parse (s:string) =
             match run Parser.plingoValue s with
             | Choice1Of2 res -> res
             | Choice2Of2 err -> FormatException err |> raise

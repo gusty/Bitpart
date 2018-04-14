@@ -98,9 +98,9 @@ module Client =
             let s = nvc.[k]
             let p = s.IndexOf ';'
             let ipPort, encKey = s.[..p-1], s.[p+1..]
-            match ipPort.Split ':' with
-            | [|ip;port|] ->
-                k , ip, parse port, s.[p+1..]
+            match split [":"] ipPort with
+            | [ip; port] ->
+                k, ip, parse port, s.[p+1..]
             | _ -> failwith "Ip and Port format should be like this: 127.0.0.1:1626")        
 
         let debug          = parse ConfigurationManager.AppSettings.["Debug"]
@@ -120,7 +120,7 @@ module Client =
 
         let serverID : int = 
             Seq.initInfinite (fun _ -> Console.ReadKey().KeyChar |> string |> tryParse)
-                |> Seq.pick (function None -> printfn "\nPlease hit a number."; None | x -> x)
+                |> pick (function None -> printfn "\nPlease hit a number."; None | x -> x)
                   
         let serverName, ip, port, encKey = servers.[serverID]
         printfn "\nServer %s" serverName    
@@ -145,13 +145,13 @@ module Client =
                                 let movies = allMovies :: !_movies |> List.indexed
                                 movies |> iter (fun (i,m) -> printfn "(%i) %s" i m)
                                 printf "Movie #:"
-                                let input = Console.ReadLine()
-                                let movieIds = input.Split [|','|] |>> fun s -> skip (parse s) movies |> head |> snd
+                                let input = Console.ReadLine ()
+                                let movieIds = input |> split [|","|] |>> fun s -> skip (parse s) movies |> head |> snd
                                 printf "IP:"
-                                let ip = Console.ReadLine()
+                                let ip = Console.ReadLine ()
                                 printf  "Port:"
-                                let port = parse (Console.ReadLine())
-                                printf  "Confirm moving movie:%s to %s:%i (y/n) :" (String.concat ", " movieIds) ip port
+                                let port = parse (Console.ReadLine ())
+                                printf  "Confirm moving movie:%s to %s:%i (y/n) :" (intercalate ", " movieIds) ip port
                                 if Console.ReadKey().KeyChar = 'y' then
                                     Console.WriteLine()
                                     LPropList ["movies", toLList movieIds; "ip", LString ip; "port", LInteger port; "delay", LInteger 10000], true

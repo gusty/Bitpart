@@ -40,7 +40,7 @@ type Counter(maxRepeats, interval, minMatchPercentage) =
     let reset() =
         match arr with
         | null -> repetitions := 0
-        | _    -> Array.iteri (fun i _ -> arr.[i] <- DateTime.MinValue) arr
+        | _    -> Array.iteri (fun i _ -> arr.[i] <- minValue) arr
 
     let updAndCheck newTime =
         match arr with

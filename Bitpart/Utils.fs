@@ -2,16 +2,9 @@
 
 open System
 open FSharpPlus
+open FSharpPlus.Math.Generic
 
 module Utils =   
-
-    let inline divRemE D d =
-        let zero, one = LanguagePrimitives.GenericZero, LanguagePrimitives.GenericOne
-        let q, r = divRem D d
-        if r < zero then
-            if d > zero then (q - one, r + d)
-            else             (q + one, r - d)
-        else (q, r)
 
     let encoding = Text.Encoding.GetEncoding "iso-8859-1"
 

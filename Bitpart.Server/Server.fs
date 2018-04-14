@@ -61,7 +61,7 @@ type AntiFloodConfig() =
     [<ConfigurationProperty("maxRepeats", IsKey = false, IsRequired = true)>] member this.MaxRepeats with get() = base.["maxRepeats"] :?> _ and set(v:int   ) = base.["maxRepeats"] <- v
     [<ConfigurationProperty("match"     , IsKey = false, IsRequired = true)>] member this.Match      with get() = base.["match"     ] :?> _ and set(v:float ) = base.["match"     ] <- v
     member this.CreateRule() = 
-        match regex with null -> regex <- Regex(Regex.Escape(this.Subject).Replace(@"\*", ".*").Replace(@"\?", "."), RegexOptions.Singleline ||| RegexOptions.Compiled) | _ -> ()
+        match regex with null -> regex <- Regex (Regex.Escape this.Subject |> replace @"\*" ".*" |> replace @"\?" ".", RegexOptions.Singleline ||| RegexOptions.Compiled) | _ -> ()
         {RuleId = this.Id; Regex = regex; Counter = Counter(this.MaxRepeats, this.Time, this.Match)}
 
 [<ConfigurationCollection(typeof<AntiFloodConfig>)>]
@@ -213,7 +213,7 @@ type Protocol() =
 
         let GetUsers (movie, group) _ = LPropList [("groupName", LString group); ("groupMembers", toLList (filter (fun {Movie = m; Groups = g} -> m == movie && exists ((==) group) g) state.Users |>> fun {Name = n} -> n))]
         let GetUserCount movie      _ = LPropList [("movieID", LString movie); ("numberMembers", LInteger (filter (fun {Movie = m} -> m == movie) state.Users |> length))]
-        let GetMovies _ = state.Users |>> (fun {Movie = m} -> m) |> distinctBy (fun (s:string) -> s.ToLowerInvariant()) |> toLList
+        let GetMovies _ = state.Users |>> (fun {Movie = m} -> m) |> distinctBy String.toLower |> toLList
         let GetGroupMembers group sender = LPropList [("groupName", LString group); ("groupMembers", toLList (filter (fun {Movie = m; Groups = g} -> m == sender.Movie && exists ((==) group) g) state.Users |>> (fun {Name = n} -> n) |> sort))]
 
         let Join  group users sender = {sender with Groups = group :: filter ((!=) group) sender.Groups} :: removeUser sender users
@@ -251,8 +251,8 @@ type Protocol() =
                 match dct.TryGetValue appServer.dbFnName, dct.TryGetValue appServer.dbFnArgs with
                 | (true, LString sp_name), (true, LList args) ->
                     log Trace "Msg Content is : %A" plist
-                    let sp_args = String.concat "," (args |>> function 
-                        | LString  e -> "'" + e.Replace ("'","''") + "'" 
+                    let sp_args = intercalate "," (args |>> function 
+                        | LString  e -> "'" + replace "'" "''" e  + "'" 
                         | LInteger e -> "'" + string e + "'" 
                         | LVoid      -> "'" + "<Void>" + "'"
                         | s          -> failwith (sprintf "Unexpected DBExec message format received: %A" s))
@@ -303,11 +303,11 @@ type Protocol() =
                         match appServer.GetSessionByID u.Session with
                         | null -> "Session no longer exists."
                         | s    -> sprintf "Name: %-26s , Movie: %-22s , Session: %A , Groups: %A" u.Name u.Movie s u.Groups
-                    let detail = String.concat nl detailed
+                    let detail = intercalate nl detailed
                     reply (sprintf " -> User Details:%s%s%sUser Count: %i" nl detail nl (length users))
                 | "m" ->
                     let users = state.Users
-                    let detail = String.concat nl (users |> groupBy (fun {Movie = m} -> m.ToLowerInvariant()) |>> fun (m, u) -> sprintf "Movie: %-22s , Users:%3i" m (length u))
+                    let detail = intercalate nl (users |> groupBy (fun {Movie = m} -> String.toLower m) |>> fun (m, u) -> sprintf "Movie: %-22s , Users:%3i" m (length u))
                     reply (sprintf " -> Movie Details:%s%s%sUser Count: %i" nl detail nl (length users))
                 | "q" -> reply (sprintf " -> agent.CurrentQueueLength = %i" state.CurrentQueueLength)
                 | "s" -> 
@@ -330,13 +330,13 @@ type Protocol() =
                     let sessionIds = state.Users |>> fun {Session = s} -> s
                     let anonymous  = appServer.GetAllSessions() |> filter (fun s -> not (exists ((==) s.SessionID) sessionIds))
                     let lines      = anonymous |>> fun s -> sprintf "Session: %A Started at: %s Last active: %s" s (formatDateTime s.StartTime) (formatDateTime s.LastActiveTime)
-                    let asText     = String.concat nl lines
+                    let asText     = intercalate nl lines
                     reply (sprintf " -> Sessions pending authentication %s%s" nl asText)
                 | "c" -> 
                     let sessionIds = state.Users |>> fun {Session = s} -> s
                     let anonymous  = appServer.GetAllSessions() |> filter (fun s -> not (exists ((==) s.SessionID) sessionIds))
                     anonymous |> iter (fun s -> s.Close())
-                    reply(sprintf " -> Clean up : %i sessions pending of authorization." (length anonymous))
+                    reply (sprintf " -> Clean up : %i sessions pending of authorization." (length anonymous))
                 | "g" -> reply (" -> Garbage Collect"); GC.Collect()
                 | "M" ->
                     let allMovies = "AllMovies"
@@ -366,7 +366,7 @@ type Protocol() =
                         ->
                         if appServer.MinLogLevel = Trace then log Trace "Message is %A" (prettyPrintMsg msg)
                         let protocol, client =
-                            match password.Split [|','|] >>= (fun x -> x.Split [|'.'|]) |>> (tryParse :_ -> int option) |> sequence with
+                            match split [|","|] password >>= split [|"."|] |> traverse tryParse with
                             | Some [|a;b;c;d|] -> (a, b), (c, d  )
                             | _                -> (1, 0), (2, 142)
                         session.ProtocolVersion <- protocol
@@ -375,7 +375,7 @@ type Protocol() =
                     | _ -> failwith "Extract login info failed, expecting a list or a property list."
                 else
                     if appServer.MinLogLevel = Trace then log Trace "Incoming Message: %A" (prettyPrintMsg msg)
-                    let recipients = msg.recipients |>> fun recipient -> (recipient+"@").Split [|'@'|] |>> (function "" -> None | s -> Some s) |> Seq.pairwise |> head
+                    let recipients = msg.recipients |>> fun recipient -> split (seq ["@"]) (recipient+"@") |>> (function "" -> None | s -> Some s) |> Seq.pairwise |> head
                     let serverMessage =
                         match recipients                                     , msg.subject         , lazy (unpickle valueU msg.content) with
                         | [Some (CI "system.group.getUsers"    ), Some movie], _                   , Lazy (LString group) -> Function (GetUsers (movie, group))
@@ -438,7 +438,7 @@ type Protocol() =
                     command.CommandType <- Data.CommandType.StoredProcedure
                     let mv = command.Parameters.AddWithValue ("@movie", "")
                     let uc = command.Parameters.AddWithValue ("@usercount", 0)
-                    state.Users |> groupBy (fun {Movie = m} -> m.ToLowerInvariant()) |>> map length |> iter (fun (m, u) ->
+                    state.Users |> groupBy (fun {Movie = m} -> String.toLower m) |>> map length |> iter (fun (m, u) ->
                                 mv.Value <- m
                                 uc.Value <- u
                                 command.ExecuteNonQuery() |> ignore)

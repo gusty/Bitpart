@@ -18,7 +18,7 @@ type Antiflood() =
     [<TestMethod>]        
     member this.Max8repetitionsInLessThan1sec() =
         let sbj, repetitions, time, mtch = "chat", 8, 1000., 100.
-        let rule = {RuleId = "max8repetitionsInLessThan1sec"; Counter = Counter(repetitions, time, mtch); Regex = Regex(Regex.Escape(sbj).Replace(@"\*", ".*").Replace(@"\?", "."), RegexOptions.Singleline ||| RegexOptions.Compiled)}
+        let rule = {RuleId = "max8repetitionsInLessThan1sec"; Counter = Counter(repetitions, time, mtch); Regex = Regex(Regex.Escape sbj |> replace @"\*" ".*" |> replace @"\?" ".", RegexOptions.Singleline ||| RegexOptions.Compiled)}
         let msg1 = 
             {
                 sender      = "sender1"
@@ -81,7 +81,7 @@ type Antiflood() =
     [<TestMethod>]        
     member this.Max5repetitionsSimilarMessage() =
         let sbj, repetitions, time, mtch = "chat", 5, 0., 90.
-        let rule = {RuleId = "max8repetitionsInLessThan1sec"; Counter = Counter(repetitions, time, mtch); Regex = Regex(Regex.Escape(sbj).Replace(@"\*", ".*").Replace(@"\?", "."), RegexOptions.Singleline ||| RegexOptions.Compiled)}
+        let rule = {RuleId = "max8repetitionsInLessThan1sec"; Counter = Counter(repetitions, time, mtch); Regex = Regex(Regex.Escape sbj |> replace @"\*" ".*" |> replace @"\?" ".", RegexOptions.Singleline ||| RegexOptions.Compiled)}
         let msg1 = 
             {
                 sender      = "sender1"
