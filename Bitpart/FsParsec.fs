@@ -55,15 +55,15 @@ module Parser =
     let isLetter = isLetter
     let isDigit  = isDigit
 
-    let createParserForwardedToRef() =
-        let r = createParserForwardedToRef() |> fst |> Parser |> ref
+    let createParserForwardedToRef () =
+        let r = createParserForwardedToRef () |> fst |> Parser |> ref
         Parser (fun stream -> unwrap !r stream), r
 
 open FSharpPlus.Control
 
 type Parser<'u, 'a> with
     static member Map (Parser x, f) = Parser (FParsec.Primitives.(|>>) x f)
-    static member Return (x) =  Parser.preturn x
+    static member Return x =  Parser.preturn x
     static member (>>=) (Parser x, f) = Parser (FParsec.Primitives.(>>=) x (f >> Parser.unwrap)):Parser<'s,'b>
     static member Empty = Parser.pzero
     static member (<|>) (Parser x, Parser y) = Parser (FParsec.Primitives.(<|>) x y)

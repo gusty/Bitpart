@@ -126,7 +126,7 @@ module Client =
         printfn "\nServer %s" serverName    
 
         let socket = new Socket (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.IP)
-        let usrName = Guid.NewGuid().ToString("N").[..11].ToUpper() + "usrAdmin"
+        let usrName = Guid.NewGuid().ToString("N").[..11].ToUpper () + "usrAdmin"
         let _movies = ref []
 
         let hold () =
@@ -191,12 +191,12 @@ module Client =
                 match status with
                 | Some exn ->
                     log Fail "Exception while connecting: %A" exn
-                    socket.Dispose()
+                    socket.Dispose ()
                     return ()
                 | None ->            
                     let r = receiveMsg ()
                     return! loop r }
-            loop (connectToNetServer socket (usrName, "PassWord", ip, port, adminMovie, 0, encKey ))
+            loop (connectToNetServer socket (usrName, "PassWord", ip, port, adminMovie, 0, encKey))
 
         Async.Start connLoop
 
@@ -206,4 +206,4 @@ module Client =
         timer.Elapsed.Add getMovies
         timer.Enabled <- true
 
-        hold()
+        hold ()

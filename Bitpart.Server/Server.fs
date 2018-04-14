@@ -33,108 +33,108 @@ type MbxMessage =
     | ServerCmd of (User list -> User        -> User List)
     | LogOnOff  of (User list -> User option -> User List)
 
-type State() =
+type State () =
     let mutable users = []
-    let agent = MailboxProcessor.Start(fun inbox ->
-        let rec loop() = async {
-            let! session, cmd = inbox.Receive()
+    let agent = MailboxProcessor.Start (fun inbox ->
+        let rec loop () = async {
+            let! session, cmd = inbox.Receive ()
             users <-
                 match cmd, (tryFind (fun {Session = s} -> s == session) users) with
                 | LogOnOff  f, sender      -> f users sender
                 | ServerCmd f, Some sender -> f users sender
                 | ServerCmd f, None        -> log Fail "Session not found: %s." session; users
-            return! (loop())}
-        loop())
+            return! loop ()}
+        loop ())
     do agent.Error.Add (log Fatal "Terminate execution due to unhandled exception in the StateMailboxProcessor. Exception was: %A")
-    member this.Users              with get() = users
-    member this.CurrentQueueLength with get() = agent.CurrentQueueLength
+    member this.Users              with get () = users
+    member this.CurrentQueueLength with get () = agent.CurrentQueueLength
     member this.post sessionID mbxmsg = agent.Post (sessionID, mbxmsg)
 
 type AntiFloodRule = {RuleId: string; Regex: Regex; Counter: Counter}
 
-type AntiFloodConfig() =
-    inherit ConfigurationElement()
+type AntiFloodConfig () =
+    inherit ConfigurationElement ()
     let mutable regex = null
-    [<ConfigurationProperty("id"        , IsKey = true , IsRequired = true)>] member this.Id         with get() = base.["id"        ] :?> _ and set(v:string) = base.["id"        ] <- v
-    [<ConfigurationProperty("subject"   , IsKey = false, IsRequired = true)>] member this.Subject    with get() = base.["subject"   ] :?> _ and set(v:string) = base.["subject"   ] <- v
-    [<ConfigurationProperty("time"      , IsKey = false, IsRequired = true)>] member this.Time       with get() = base.["time"      ] :?> _ and set(v:float ) = base.["time"      ] <- v
-    [<ConfigurationProperty("maxRepeats", IsKey = false, IsRequired = true)>] member this.MaxRepeats with get() = base.["maxRepeats"] :?> _ and set(v:int   ) = base.["maxRepeats"] <- v
-    [<ConfigurationProperty("match"     , IsKey = false, IsRequired = true)>] member this.Match      with get() = base.["match"     ] :?> _ and set(v:float ) = base.["match"     ] <- v
-    member this.CreateRule() = 
+    [<ConfigurationProperty("id"        , IsKey = true , IsRequired = true)>] member this.Id         with get () = base.["id"        ] :?> _ and set (v:string) = base.["id"        ] <- v
+    [<ConfigurationProperty("subject"   , IsKey = false, IsRequired = true)>] member this.Subject    with get () = base.["subject"   ] :?> _ and set (v:string) = base.["subject"   ] <- v
+    [<ConfigurationProperty("time"      , IsKey = false, IsRequired = true)>] member this.Time       with get () = base.["time"      ] :?> _ and set (v:float ) = base.["time"      ] <- v
+    [<ConfigurationProperty("maxRepeats", IsKey = false, IsRequired = true)>] member this.MaxRepeats with get () = base.["maxRepeats"] :?> _ and set (v:int   ) = base.["maxRepeats"] <- v
+    [<ConfigurationProperty("match"     , IsKey = false, IsRequired = true)>] member this.Match      with get () = base.["match"     ] :?> _ and set (v:float ) = base.["match"     ] <- v
+    member this.CreateRule () = 
         match regex with null -> regex <- Regex (Regex.Escape this.Subject |> replace @"\*" ".*" |> replace @"\?" ".", RegexOptions.Singleline ||| RegexOptions.Compiled) | _ -> ()
-        {RuleId = this.Id; Regex = regex; Counter = Counter(this.MaxRepeats, this.Time, this.Match)}
+        {RuleId = this.Id; Regex = regex; Counter = Counter (this.MaxRepeats, this.Time, this.Match)}
 
 [<ConfigurationCollection(typeof<AntiFloodConfig>)>]
-type AntiFloodConfigCollection() =
-    inherit ConfigurationElementCollection()
-    override this.CreateNewElement() = new AntiFloodConfig()  :> ConfigurationElement
-    override this.GetElementKey(e:ConfigurationElement) = (e :?> AntiFloodConfig).Id :> obj
+type AntiFloodConfigCollection () =
+    inherit ConfigurationElementCollection ()
+    override this.CreateNewElement () = new AntiFloodConfig () :> ConfigurationElement
+    override this.GetElementKey (e:ConfigurationElement) = (e :?> AntiFloodConfig).Id :> obj
 
-type AntiFlood() =
+type AntiFlood () =
     let mutable brokenRule = None
-    let agent = MailboxProcessor.Start(fun inbox ->
-        let rec loop() = async {
-            let! time, rules, msg, cont, stop = inbox.Receive()
+    let agent = MailboxProcessor.Start (fun inbox ->
+        let rec loop () = async {
+            let! time, rules, msg, cont, stop = inbox.Receive ()
             match brokenRule with
             | None ->
-                brokenRule <- rules |> tryFind (fun r -> r.Counter.Update(msg.content, time))
+                brokenRule <- rules |> tryFind (fun r -> r.Counter.Update (msg.content, time))
                 match brokenRule with
-                | None      -> cont()
+                | None      -> cont ()
                 | Some rule -> stop rule
             | _ -> ()
-            return! (loop())}
-        loop())
+            return! loop ()}
+        loop ())
     do agent.Error.Add (log Fatal "Terminate execution due to unhandled exception in the AntiFloodMailboxProcessor. Exception was: %A")
     member this.post time rules msg cont stop = agent.Post (time, rules, msg, cont, stop)
 
 [<AllowNullLiteral>]
-type CustomProtocolSession() =
-    inherit AppSession<CustomProtocolSession, BinaryRequestInfo>()
+type CustomProtocolSession () =
+    inherit AppSession<CustomProtocolSession, BinaryRequestInfo> ()
     let messageLogSize = 100
     let lastMessages   = Array.zeroCreate messageLogSize
-    member val AntiFloodState  = AntiFlood() with get
-    member val AntiFloodRules  = []          with get, set
-    member val Authenticated   = false       with get, set
-    member val ProtocolVersion = 0, 0        with get, set
-    member val ClientVersion   = 0, 0        with get, set
-    member val MessageHash     = -1, null    with get, set
+    member val AntiFloodState  = AntiFlood () with get
+    member val AntiFloodRules  = []           with get, set
+    member val Authenticated   = false        with get, set
+    member val ProtocolVersion = 0, 0         with get, set
+    member val ClientVersion   = 0, 0         with get, set
+    member val MessageHash     = -1, null     with get, set
     member this.CheckMessageOrder msgId =
         let  v = lastMessages.[msgId % messageLogSize]
         if   v = msgId then log Warn "Duplicate message: %i - Session: %A" msgId this; false
         elif v > msgId then log Warn "New messageId: %i is too old compared with previous one: %i - Session: %A" msgId v this; false
         else lastMessages.[msgId % messageLogSize] <- msgId; true
-    override this.HandleException(e) =
+    override this.HandleException e =
         log Fatal "Unhandled exception in session: %A : %A " this e
         this.Close CloseReason.ApplicationError
-    override this.ToString() = sprintf "%s [%-15A]" this.SessionID this.RemoteEndPoint.Address
+    override this.ToString () = sprintf "%s [%-15A]" this.SessionID this.RemoteEndPoint.Address
 
 type MyReceiveFilter (appServer,  appSession:CustomProtocolSession, remoteEndPoint) =
     inherit FixedHeaderReceiveFilter<BinaryRequestInfo> 6
-    override this.GetBodyLengthFromHeader(header, offset, length) =
+    override this.GetBodyLengthFromHeader (header, offset, length) =
         if not (header.[offset] = 114uy) || not (header.[offset + 1] = 0uy) then
             log Warn "Invalid headers: %i - %i received from session: %A . Client is %sauthenticated, will disconnect." header.[offset] header.[offset+1] appSession (if appSession.Authenticated then "" else "not ")
             appSession.Close CloseReason.ProtocolError
             0
         else ofBytesWithOptions false (offset+2) header
-    override this.ResolveRequestInfo(header, bodyBuffer, offset, length) = 
+    override this.ResolveRequestInfo (header, bodyBuffer, offset, length) = 
         BinaryRequestInfo (Text.Encoding.UTF8.GetString (header.Array, header.Offset, 2), SuperSocket.Common.BinaryUtil.CloneRange (bodyBuffer, offset, length))
 
-type FilterFactory() =
+type FilterFactory () =
     interface IReceiveFilterFactory<BinaryRequestInfo> with
         member this.CreateFilter (appServer, appSession, remoteEndPoint) =
             log Debug "New socket session: %A" appSession
             MyReceiveFilter (appServer, appSession :?> CustomProtocolSession,  remoteEndPoint) :> IReceiveFilter<BinaryRequestInfo>
    
-type Protocol() = 
+type Protocol () = 
     inherit AppServer<CustomProtocolSession, BinaryRequestInfo> (FilterFactory())   
     
     let [<Literal>] MvAdm = "MovieAdmin"
     let [<Literal>] MvSQL = "MovieSQL"
-    let assembly = Reflection.Assembly.GetExecutingAssembly()
+    let assembly = Reflection.Assembly.GetExecutingAssembly ()
     let path = IO.Path.GetDirectoryName assembly.Location
 
     let initialMinSLL, initialMinFLL = Info, Debug
-    let state = State()
+    let state = State ()
     member val BlackList         = [||]                            with get, set
     member val MaxUserCount      = 0, DateTime.MinValue            with get, set
     member val MaxSessionCount   = 0, DateTime.MinValue            with get, set
@@ -166,7 +166,7 @@ type Protocol() =
         appServer.antiFloodRules <- config.GetChildConfig<AntiFloodConfigCollection> "antiflood" |> Seq.cast |> toList
         true
     
-    override appServer.OnStartup() =
+    override appServer.OnStartup () =
         setLogFileName "Server-log"
         let setScreenLogLevel level =
             appServer.MinScreenLogLevel <- level
@@ -179,7 +179,7 @@ type Protocol() =
         setScreenLogLevel appServer.MinScreenLogLevel
         setFileLogLevel   appServer.MinFileLogLevel
 
-        let isInBlackList (session:IAppSession) = exists ((=) (session.RemoteEndPoint.Address.ToString())) appServer.BlackList
+        let isInBlackList (session:IAppSession) = exists ((=) (string session.RemoteEndPoint.Address)) appServer.BlackList
         let isValid msg   (session:CustomProtocolSession) =
             let order, hashOK = 
                 if session.ProtocolVersion > (1, 1) then
@@ -190,7 +190,7 @@ type Protocol() =
                         match session.MessageHash with
                         | i, k when i = d -> item r k
                         | _ ->
-                            use md5 = Security.Cryptography.MD5CryptoServiceProvider.Create()
+                            use md5 = Security.Cryptography.MD5CryptoServiceProvider.Create ()
                             let h = md5.ComputeHash (encoding.GetBytes (appServer.encKey + session.SessionID + string d))
                             session.MessageHash <- d, h
                             h.[r]
@@ -208,7 +208,7 @@ type Protocol() =
                 if not (session.SocketSession.TrySend (ArraySegment bytes)) then
                     log Warn "Dropping Message to session: %A, size was %-4i (sender = %s, rcpts = %A, subject = %s)." session (length bytes) message.sender message.recipients message.subject
 
-        let disconnectUser sessionId = match appServer.GetSessionByID sessionId with null -> () | u -> u.Close()
+        let disconnectUser sessionId = match appServer.GetSessionByID sessionId with null -> () | u -> u.Close ()
         let removeUser user users = filter (fun {Session = x} -> x != user.Session) users
 
         let GetUsers (movie, group) _ = LPropList [("groupName", LString group); ("groupMembers", toLList (filter (fun {Movie = m; Groups = g} -> m == movie && exists ((==) group) g) state.Users |>> fun {Name = n} -> n))]
@@ -249,23 +249,23 @@ type Protocol() =
             | Some s ->
                 let dct = dict plist
                 match dct.TryGetValue appServer.dbFnName, dct.TryGetValue appServer.dbFnArgs with
-                | (true, LString sp_name), (true, LList args) ->
+                | (true, LString spName), (true, LList args) ->
                     log Trace "Msg Content is : %A" plist
-                    let sp_args = intercalate "," (args |>> function 
+                    let spArgs = intercalate "," (args |>> function 
                         | LString  e -> "'" + replace "'" "''" e  + "'" 
                         | LInteger e -> "'" + string e + "'" 
                         | LVoid      -> "'" + "<Void>" + "'"
                         | s          -> failwith (sprintf "Unexpected DBExec message format received: %A" s))
-                    log Trace "execDbQuery %s %s" sp_name sp_args
-                    use conn = new SqlConnection(s)
-                    conn.Open()
-                    use command = new SqlCommand ("exec sp_" + sp_name + " " + sp_args, conn)
+                    log Trace "execDbQuery %s %s" spName spArgs
+                    use conn = new SqlConnection (s)
+                    conn.Open ()
+                    use command = new SqlCommand ("exec sp_" + spName + " " + spArgs, conn)
                     let lstResult = seq {
-                        use reader = command.ExecuteReader()
-                        while reader.Read() do
+                        use reader = command.ExecuteReader ()
+                        while reader.Read () do
                             yield [0.. reader.FieldCount-1] |>> fun i -> 
                                 if reader.GetFieldType i = typeof<Boolean> then if reader.GetBoolean i then "1" else "0" 
-                                else reader.[i].ToString()} |> toList
+                                else string reader.[i]} |> toList
                     log Trace "DB-Execution results: %A" lstResult
                     let result = toList plist @ [appServer.dbFnResult, lstResult |>> (map LString >> LList) |> LList]
                     log Trace "Result before sending to server: %A" (LPropList result)
@@ -294,7 +294,7 @@ type Protocol() =
                 | "l" -> 
                     reply (sprintf " -> Loading and applying blacklist ...")
                     appServer.BlackList <- IO.File.ReadAllLines (path + @"\blacklist.txt")
-                    appServer.GetAllSessions() |> filter isInBlackList |> iter (fun s -> 
+                    appServer.GetAllSessions () |> filter isInBlackList |> iter (fun s -> 
                         log Warn "Session %A is Blacklisted, will be disconnected immediately." s
                         s.Close CloseReason.ServerClosing)
                 | "u" -> 
@@ -328,16 +328,16 @@ type Protocol() =
                     reply (sprintf "Path = %s" path)
                 | "S" ->
                     let sessionIds = state.Users |>> fun {Session = s} -> s
-                    let anonymous  = appServer.GetAllSessions() |> filter (fun s -> not (exists ((==) s.SessionID) sessionIds))
+                    let anonymous  = appServer.GetAllSessions () |> filter (fun s -> not (exists ((==) s.SessionID) sessionIds))
                     let lines      = anonymous |>> fun s -> sprintf "Session: %A Started at: %s Last active: %s" s (formatDateTime s.StartTime) (formatDateTime s.LastActiveTime)
                     let asText     = intercalate nl lines
                     reply (sprintf " -> Sessions pending authentication %s%s" nl asText)
                 | "c" -> 
                     let sessionIds = state.Users |>> fun {Session = s} -> s
-                    let anonymous  = appServer.GetAllSessions() |> filter (fun s -> not (exists ((==) s.SessionID) sessionIds))
-                    anonymous |> iter (fun s -> s.Close())
+                    let anonymous  = appServer.GetAllSessions () |> filter (fun s -> not (exists ((==) s.SessionID) sessionIds))
+                    anonymous |> iter (fun s -> s.Close ())
                     reply (sprintf " -> Clean up : %i sessions pending of authorization." (length anonymous))
-                | "g" -> reply (" -> Garbage Collect"); GC.Collect()
+                | "g" -> reply (" -> Garbage Collect"); GC.Collect ()
                 | "M" ->
                     let allMovies = "AllMovies"
                     let d = dict plist
@@ -350,7 +350,7 @@ type Protocol() =
                         state.Users |> iter (fun u ->  if u.Movie != MvAdm && (moveAll <> exists ((==) u.Movie) movies) then send (msg [u.Name]) (appServer.GetSessionByID u.Session))
                     | _ -> log Warn "Admin Command: 'M' -> wrong format"
                 | _ -> ()
-            with exn -> reply (exn.ToString())
+            with exn -> reply (string exn)
 
 
         let evtRequest (session :CustomProtocolSession) (requestInfo :Protocol.BinaryRequestInfo) =  
@@ -358,7 +358,7 @@ type Protocol() =
                 let msg = unpickle (messageU (if session.Authenticated then None else Some appServer.blowfishVector)) requestInfo.Body
                 if not (isValid msg session) then session.Close CloseReason.ServerClosing
                 elif not session.Authenticated then
-                    session.AntiFloodRules <- appServer.antiFloodRules |>> fun c -> c.CreateRule()
+                    session.AntiFloodRules <- appServer.antiFloodRules |>> fun c -> c.CreateRule ()
                     let (|Props|) lst p = choose (fun s -> tryPick (function (str, LString v) when str = s -> Some v | _ -> None) p) lst
                     match unpickle valueU msg.content with
                     | LList [LString movieId; LString userId; LString password]
@@ -388,7 +388,7 @@ type Protocol() =
                         | [Some cmd                             , Some _    ], "adminCmd"          , Lazy (LPropList lst) -> AdminCmd (cmd, lst)
                         | [Some _                               , Some MvSQL], "DBexec"            , Lazy (LPropList lst) -> DBCmd     lst
                         | _                                                                                               -> UserMsg   recipients
-                    let processServerMessage() =
+                    let processServerMessage () =
                         match serverMessage, lazy (tryFind (fun {Session = s} -> s == session.SessionID) state.Users) with
                         | Function f, Lazy None -> log Debug "Session %A not found, function: %A, message: %A" session f (prettyPrintMsg msg)
                         | UserMsg _ , Lazy None -> log Debug "Session %A not found, message: %s"               session   (prettyPrintMsg msg)
@@ -411,7 +411,7 @@ type Protocol() =
                         | Invalid              , _ -> log Warn "Session: %A Invalid message format received." session
 
                     match filter (fun {Regex = r} -> r.IsMatch msg.subject) session.AntiFloodRules with
-                    | []    -> processServerMessage()
+                    | []    -> processServerMessage ()
                     | rules -> session.AntiFloodState.post DateTime.Now rules msg processServerMessage (fun rule -> 
                                     log Warn "Messages %i from session %A over rule '%s' tolerance, last message was: %A" msg.errorCode session rule.RuleId (prettyPrintMsg msg)
                                     state.post session.SessionID (ServerCmd Delete))        
@@ -426,14 +426,14 @@ type Protocol() =
             else log Debug "Session: %A accepted." session
 
         let evtLogout (session: CustomProtocolSession) (reason: CloseReason) =
-            log Debug "Session: %A disconnected, reason: %s" session (reason.ToString())
+            log Debug "Session: %A disconnected, reason: %s" session (string reason)
             state.post session.SessionID (LogOnOff (DetectDisconnect session reason))
 
         let evtStatus _ = 
             (fun s sp ->
                 try
-                    use conn = new SqlConnection(s)
-                    conn.Open()
+                    use conn = new SqlConnection (s)
+                    conn.Open ()
                     use command = new SqlCommand (sp, conn)
                     command.CommandType <- Data.CommandType.StoredProcedure
                     let mv = command.Parameters.AddWithValue ("@movie", "")
@@ -441,14 +441,14 @@ type Protocol() =
                     state.Users |> groupBy (fun {Movie = m} -> String.toLower m) |>> map length |> iter (fun (m, u) ->
                                 mv.Value <- m
                                 uc.Value <- u
-                                command.ExecuteNonQuery() |> ignore)
+                                command.ExecuteNonQuery () |> ignore)
                 with exn -> log Fail "DB-Execution failed: %A" exn) <!> appServer.dbCnString <*> appServer.spStats |> ignore
             let qs = state.CurrentQueueLength
             log (if qs > 1000 then Fatal elif qs > 100 then Fail elif qs > 10 then Warn else Trace) "Queue size is %i" qs
             log Debug "Users   : %i" (length state.Users)
             log Debug "Sessions: %i" appServer.SessionCount
-            appServer.GetAllSessions() |> iter (fun s -> 
-                if not s.Authenticated && (DateTime.Now - s.StartTime).TotalSeconds > 60. then 
+            appServer.GetAllSessions () |> iter (fun s ->
+                if not s.Authenticated && (DateTime.Now - s.StartTime).TotalSeconds > 60. then
                     log Debug "Session %A login timeout." s
                     s.Close CloseReason.TimeOut)
 
@@ -459,4 +459,4 @@ type Protocol() =
         timer.Elapsed.Add evtStatus
         timer.Enabled <- true
                 
-        base.OnStarted()
+        base.OnStarted ()

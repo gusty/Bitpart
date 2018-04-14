@@ -61,4 +61,4 @@ let packMessage encKey message =
     byteP    0uy writer
     numP (length msgBody) writer
     writer.Write msgBody
-    stream.ToArray()
+    stream.ToArray ()

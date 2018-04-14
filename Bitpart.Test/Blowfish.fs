@@ -4,7 +4,7 @@ open Microsoft.VisualStudio.TestTools.UnitTesting
 open FSharpPlus
 
 [<TestClass>]
-type Blowfish() =    
+type Blowfish () =    
     let bfkey  = 
         [| 
             73uy;   80uy;  65uy; 100uy; 100uy; 114uy; 101uy; 115uy; 115uy;  32uy;
@@ -14,7 +14,7 @@ type Blowfish() =
     let target = Bitpart.Blowfish.blowfishCypher bfkey
 
     [<TestMethod>]        
-    member this.Decrypt() =
+    member this.Decrypt () =
         let buffer =
             [|
                 140uy; 176uy;  97uy; 202uy;
@@ -47,17 +47,17 @@ type Blowfish() =
         Assert.IsTrue  assertion
 
     [<TestMethod>]   
-    member this.DecryptKeyBlockTest() =
+    member this.DecryptKeyBlockTest () =
         let lCipherBlock = 203447117607259685L
         let expected = -2567789888536546563L
         let actual = Bitpart.Blowfish.decryptBlock target lCipherBlock
         assert (expected = actual)
 
     [<TestMethod>]
-    member this.DecryptTime() =
+    member this.DecryptTime () =
         let s = System.DateTime.Now
         {1..100000} |> iter (fun _ ->
-            let dec, decblock = this.Decrypt(), this.DecryptKeyBlockTest()
+            let dec, decblock = this.Decrypt (), this.DecryptKeyBlockTest ()
             ())
         #if DEBUG
         Assert.IsTrue  ((System.DateTime.Now - s).TotalMilliseconds < 2000.)

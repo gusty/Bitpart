@@ -14,7 +14,7 @@ module Log =
     let minScreenLogLevel = Info
     let minFileLogLevel   = Trace
     let defaultFileName   = "log"
-    let path = IO.Path.Combine(IO.Path.GetDirectoryName(Reflection.Assembly.GetExecutingAssembly().Location), "Logs")
+    let path = IO.Path.Combine (IO.Path.GetDirectoryName (Reflection.Assembly.GetExecutingAssembly().Location), "Logs")
 
     let colLevel = function
         | LogLevel.Trace
@@ -23,7 +23,7 @@ module Log =
         | LogLevel.Warn  -> ConsoleColor.Yellow
         | _              -> ConsoleColor.Red    
 
-    let formatDateTime (dt:DateTime) = dt.ToString("yyyy-MM-dd HH:mm:ss:fff")
+    let formatDateTime (dt:DateTime) = dt.ToString ("yyyy-MM-dd HH:mm:ss:fff")
 
     let logLine appmodule level (time:DateTime) str minScreenLogLevel minFileLogLevel fileName =
         let printToConsole level (text:string) =
@@ -35,7 +35,7 @@ module Log =
         let formatLine appmodule = sprintf "%s| %s| %A| %s" (formatDateTime time) appmodule
         if level >= minScreenLogLevel then printToConsole level (formatLine appmodule level str)
         if level >= minFileLogLevel then 
-            try IO.File.AppendAllLines (path + "\\" + fileName + "-" + DateTime.Now.ToString("yyyyMMdd") + ".csv", [formatLine appmodule level str])
+            try IO.File.AppendAllLines (path + "\\" + fileName + "-" + DateTime.Now.ToString ("yyyyMMdd") + ".csv", [formatLine appmodule level str])
             with exn -> printToConsole Fail (formatLine "Logging" Fail (sprintf "Could not log into file %s : %A" fileName exn))
 
     type LogMessage =
@@ -46,7 +46,7 @@ module Log =
 
     let logAgent = MailboxProcessor.Start (fun inbox ->
         let rec loop sl fl fn = async { 
-            let! msg = inbox.Receive()
+            let! msg = inbox.Receive ()
             let (sl, fl, fn) =
                 try                        
                     match msg with

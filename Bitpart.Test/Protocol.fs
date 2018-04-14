@@ -8,9 +8,9 @@ open Bitpart.Lingo.Pickler
 open Bitpart.Multiuser
 
 [<TestClass>]
-type Protocol() =
+type Protocol () =
     [<TestMethod>]        
-    member this.PickleUnpickle() =
+    member this.PickleUnpickle () =
         let msg1 = 
             {
                 sender      = "TheSender_ñéè"
@@ -19,7 +19,7 @@ type Protocol() =
                 content     = 
                     pickle valueP (
                         LPropList [
-                            "move"  , LList [LRect(LInteger 2, LFloat -2879.54, LInteger -7984, LFloat 1.1); LDate(2012,2,28,34786)]
+                            "move"  , LList [LRect (LInteger 2, LFloat -2879.54, LInteger -7984, LFloat 1.1); LDate (2012,2,28,34786)]
                             "object", LString "Queen"
                             "Color" , LColor (255,0,55)
                             "img"   , LPicture [|12uy;24uy;24uy|]
@@ -33,16 +33,16 @@ type Protocol() =
         Assert.AreEqual (msg1, msg2)
 
     [<TestMethod>]   
-    member this.PickleUnpickleTime() =
+    member this.PickleUnpickleTime () =
         let s = System.DateTime.Now
         iter (fun _ -> this.PickleUnpickle()) {1..40000}
         Assert.IsTrue ((System.DateTime.Now - s).TotalMilliseconds < 2000.)
 
     [<TestMethod>] 
-    member this.ParseToString() =     
+    member this.ParseToString () =     
         let v1 = 
             LPropList [
-                "move"  , LList [LRect(LInteger 2, LFloat -2879.54, LInteger -7984, LFloat 1.1)]
+                "move"  , LList [LRect (LInteger 2, LFloat -2879.54, LInteger -7984, LFloat 1.1)]
                 "object", LString "Queen"
                 "Color" , LColor (255, 0, 55)
                 ]
@@ -53,8 +53,8 @@ type Protocol() =
 
 
     [<TestMethod>] 
-    member this.ParseToStringTime() =     
+    member this.ParseToStringTime () =
         let s = System.DateTime.Now
-        iter (fun _ -> this.ParseToString()) {1..40000}
+        iter (fun _ -> this.ParseToString ()) {1..40000}
         Assert.IsTrue ((System.DateTime.Now - s).TotalMilliseconds < 3000.)
         ()

@@ -24,7 +24,7 @@ module Lingo =
         | LPicture   of byte []
         | LMedia     of byte []
         | LRaw       of byte []
-        with override t.ToString() =
+        with override t.ToString () =
                 match t with
                 | LVoid      -> "void"
                 | LSymbol  s -> "#" + s 
@@ -103,7 +103,7 @@ module Lingo =
             | LPoint   (x, y)    -> numP Point   st; valueP  x st; valueP y st
             | LRect (a, b, c, d) -> numP Rect    st; valueP  a st; valueP b st; valueP c st; valueP d st
             | LVector  (x, y, z) -> numP Vector  st; numP x st; numP y st; numP z st
-            | LTransform (p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, pa, pb, pc, pd, pe, pf)  -> 
+            | LTransform (p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, pa, pb, pc, pd, pe, pf) -> 
                 numP Transform st
                 numP p0 st; numP p1 st; numP p2 st; numP p3 st; numP p4 st; numP p5 st; numP p6 st; numP p7 st
                 numP p8 st; numP p9 st; numP pa st; numP pb st; numP pc st; numP pd st; numP pe st; numP pf st
@@ -119,13 +119,13 @@ module Lingo =
             let header lValue = [|byte (lValue >>>  8); byte lValue|]
             match ltype with
             | Void      -> LVoid
-            | Integer   -> LInteger   (numU  st)
+            | Integer   -> LInteger   (numU st)
             | Float     -> LFloat     (numU st)
             | Symbol    -> LSymbol    (stringU st)
             | String    -> LString    (stringU st)
             | List      -> LList      (listU valueU st)
             | Point     -> LPoint     (valueU  st, valueU  st)
-            | Rect      -> LRect      (valueU  st, valueU  st, valueU  st, valueU  st)
+            | Rect      -> LRect      (valueU  st, valueU  st, valueU  st, valueU st)
             | Vector    -> LVector    (numU st, numU st, numU st)
             | Transform -> LTransform (
                             numU st, numU st, numU st, numU st, numU st, numU st, numU st, numU st, 
@@ -181,7 +181,7 @@ module Lingo =
         let linteger = pint32 .>> notFollowedBy (pstring ".") |>> LInteger
         let ltrue  = stringCIReturn "true"  (LInteger 1)
         let lfalse = stringCIReturn "false" (LInteger 0)
-        let lvoid  = stringCIReturn "void" LVoid
+        let lvoid  = stringCIReturn "void"   LVoid
         let lvoidB = stringCIReturn "<void>" LVoid
 
         let lpoint  p1 p2       = pstringCI "point"  >>. ws >>. (btParens <| tuple2 (i0 p1) (iN p2)                    ) |>> LPoint
@@ -190,7 +190,7 @@ module Lingo =
         let ldate   p1 p2 p3    = pstringCI "date"   >>. ws >>. (btParens <| tuple4 (i0 p1) (iN p2) (iN p3) (preturn 0)) |>> LDate
         let lrect   p1 p2 p3 p4 = pstringCI "rect"   >>. ws >>. (btParens <| tuple4 (i0 p1) (iN p2) (iN p3) (iN p4)    ) |>> LRect
 
-        let lvalue, lvalueRef = createParserForwardedToRef()
+        let lvalue, lvalueRef = createParserForwardedToRef ()
 
         let private listBtStrings sOpen sClose pElement f = between (str sOpen) (str sClose) (ws >>. sepBy (pElement .>> ws) (str "," .>> ws) |>> f)
         let emptyplist = str "[" >>. ws >>. str ":" >>. ws >>. str "]" >>% (LPropList [])
@@ -223,7 +223,7 @@ module Lingo =
         static member TryParse (s:string, [<Runtime.InteropServices.Out>]result: LValue byref) =
             match run Parser.plingoValue s with
             | Choice1Of2 res -> result <- res; true
-            | Choice2Of2 err -> false
+            | Choice2Of2  _  -> false
 
         static member Parse (s:string) =
             match run Parser.plingoValue s with

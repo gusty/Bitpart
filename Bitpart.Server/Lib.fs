@@ -26,8 +26,8 @@ module Lib =
         else (1. - (float d/ float l)) * 100.
 
 
-type Counter(maxRepeats, interval, minMatchPercentage) =
-    let arr = if interval > 0. then Array.zeroCreate maxRepeats : DateTime [] else null
+type Counter (maxRepeats, interval, minMatchPercentage) =
+    let arr = if interval > 0. then Array.zeroCreate<DateTime> maxRepeats else null
     let mutable arrIndex = 0
     let repetitions = ref 0
     let lastMsg = ref [||] : byte [] ref
@@ -37,7 +37,7 @@ type Counter(maxRepeats, interval, minMatchPercentage) =
         | 100. -> x = y
         | m    -> Lib.matchPercentage x y > m
 
-    let reset() =
+    let reset () =
         match arr with
         | null -> repetitions := 0
         | _    -> Array.iteri (fun i _ -> arr.[i] <- minValue) arr
@@ -53,9 +53,9 @@ type Counter(maxRepeats, interval, minMatchPercentage) =
             arrIndex <- (arrIndex + 1) % maxRepeats
             (newTime - oldTime).TotalMilliseconds < interval
 
-    member this.Update(msgcontent, time) =
+    member this.Update (msgcontent, time) =
         if not (eq msgcontent !lastMsg) then 
-            reset()
+            reset ()
             if minMatchPercentage = 100. then lastMsg := msgcontent
         if minMatchPercentage < 100. && minMatchPercentage > 0. then lastMsg := msgcontent
         updAndCheck time

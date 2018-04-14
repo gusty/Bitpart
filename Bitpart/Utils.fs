@@ -51,7 +51,7 @@ module Utils =
         use stream = new IO.MemoryStream ()
         use writer = new IO.BinaryWriter (stream)
         valueP value writer
-        stream.ToArray()
+        stream.ToArray ()
 
     let unpickle valueU (bytes:byte[]) =
         use stream = new IO.MemoryStream (bytes)
